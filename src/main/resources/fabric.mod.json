@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "chattabs",
+  "version": "${version}",
+  "name": "Chat Tabs",
+  "description": "Adds tabbed chat with automatic channel switching for servers with /g, /l, /p, and /tell commands",
+  "authors": ["paraf0x"],
+  "contact": {
+    "sources": "https://github.com/paraf0x/mc_chat_tabs",
+    "issues": "https://github.com/paraf0x/mc_chat_tabs/issues"
+  },
+  "license": "MIT",
+  "icon": "assets/chattabs/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.chattabs.ChatTabsMod"]
+  },
+  "mixins": ["chattabs.mixins.json"],
+  "accessWidener": "chattabs.accesswidener",
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}

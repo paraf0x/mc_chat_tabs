@@ -1,0 +1,11 @@
+{
+  "chattabs.tab.all": "All",
+  "chattabs.tab.local": "Local",
+  "chattabs.tab.party": "Party",
+  "chattabs.tab.dms": "DMs",
+  "chattabs.key.category": "Chat Tabs",
+  "chattabs.key.tab_all": "Switch to All",
+  "chattabs.key.tab_local": "Switch to Local",
+  "chattabs.key.tab_party": "Switch to Party",
+  "chattabs.key.tab_dms": "Switch to DMs"
+}
