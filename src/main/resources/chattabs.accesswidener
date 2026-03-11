@@ -1,0 +1,6 @@
+accessWidener v2 named
+
+# Access to ChatHud internals
+accessible field net/minecraft/client/gui/hud/ChatHud messages Ljava/util/List;
+accessible field net/minecraft/client/gui/hud/ChatHud visibleMessages Ljava/util/List;
+accessible method net/minecraft/client/gui/hud/ChatHud addVisibleMessage (Lnet/minecraft/client/gui/hud/ChatHudLine;)V
