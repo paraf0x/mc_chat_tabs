@@ -4,9 +4,11 @@ import com.chattabs.tab.ChatTab;
 import com.chattabs.tab.TabManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
 import net.minecraft.client.gui.widget.ClickableWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 
 import java.util.List;
@@ -45,7 +47,7 @@ public class TabBar extends ClickableWidget {
     }
 
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
         // Never consume key events - let ChatScreen handle them
         return false;
     }
@@ -105,8 +107,11 @@ public class TabBar extends ClickableWidget {
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) return false;
+    public boolean mouseClicked(Click click, boolean doubled) {
+        if (click.button() != 0) return false;
+
+        double mouseX = click.x();
+        double mouseY = click.y();
 
         TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
         TabManager tabManager = TabManager.getInstance();

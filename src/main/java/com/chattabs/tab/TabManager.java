@@ -7,6 +7,7 @@ import com.chattabs.ChatHudAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
+import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 
 import java.util.*;
@@ -146,14 +147,34 @@ public class TabManager {
         }
 
         // Route message to appropriate tabs
+        boolean playedSound = false;
         for (ChatTab tab : getAllTabs()) {
             if (tab.shouldShowMessage(parsed)) {
                 tab.addMessage(hudLine);
-                // Only increment unread for Local and DM tabs (not All/Global)
                 if (tab != activeTab && tab.shouldTrackUnread()) {
                     tab.incrementUnread();
+                    if (!playedSound) {
+                        playNotificationSound(parsed);
+                        playedSound = true;
+                    }
                 }
             }
+        }
+
+        // Mentions always play sound, even if on the active tab
+        if (!playedSound && parsed.isMention()) {
+            playNotificationSound(parsed);
+        }
+    }
+
+    private void playNotificationSound(ChatMessage parsed) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null) return;
+
+        if (parsed.isMention()) {
+            client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+        } else {
+            client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 0.5f, 1.0f);
         }
     }
 

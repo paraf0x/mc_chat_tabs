@@ -19,6 +19,9 @@ public class ChatParser {
     // Note: removed ^ anchor to handle color codes/prefixes before the envelope
     private static final String ARROW_CHARS = "[→➔►▶]|->|>";
 
+    // Chat Heads mod inserts "[PlayerName head]" before player names - strip it
+    private static final Pattern CHAT_HEADS_PATTERN = Pattern.compile("\\[\\w+ head\\]");
+
     // Generic DM pattern - captures both sides of the arrow
     // Format: ✉ SenderOrYou → RecipientOrYou > message
     private static final Pattern DM_PATTERN = Pattern.compile(
@@ -37,7 +40,8 @@ public class ChatParser {
     }
 
     public static ChatMessage parse(Text message) {
-        String text = message.getString();
+        // Strip Chat Heads mod placeholders like "[PlayerName head]"
+        String text = CHAT_HEADS_PATTERN.matcher(message.getString()).replaceAll("").trim();
 
         // Try to match channel patterns
         Matcher matcher;
@@ -65,7 +69,15 @@ public class ChatParser {
         // Global chat [G]
         matcher = GLOBAL_PATTERN.matcher(text);
         if (matcher.find()) {
-            return new ChatMessage(message, ChatChannel.GLOBAL, matcher.group(1).trim(), matcher.group(2).trim());
+            String sender = matcher.group(1).trim();
+            String content = matcher.group(2).trim();
+            ChatMessage msg = new ChatMessage(message, ChatChannel.GLOBAL, sender, content);
+            // Check if our name is mentioned in the message content
+            String ownName = getOwnPlayerName();
+            if (ownName != null && content.toLowerCase().contains(ownName.toLowerCase())) {
+                msg.setMention(true);
+            }
+            return msg;
         }
 
         // Local chat [L]

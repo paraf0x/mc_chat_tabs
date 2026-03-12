@@ -9,6 +9,7 @@ public class ChatMessage {
     private final String content;
     private final long timestamp;
     private boolean outgoing = false;  // For DMs: true if we sent it
+    private boolean mention = false;   // True if player's name is mentioned
 
     public ChatMessage(Text originalMessage, ChatChannel channel, String senderName, String content) {
         this.originalMessage = originalMessage;
@@ -48,5 +49,13 @@ public class ChatMessage {
 
     public void setOutgoing(boolean outgoing) {
         this.outgoing = outgoing;
+    }
+
+    public boolean isMention() {
+        return mention;
+    }
+
+    public void setMention(boolean mention) {
+        this.mention = mention;
     }
 }
