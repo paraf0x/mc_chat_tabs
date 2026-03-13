@@ -1,0 +1,68 @@
+name: Publish to Modrinth
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'
+
+    - name: Build
+      run: |
+        chmod +x ./gradlew || true
+        ./gradlew --no-daemon build
+
+    - name: Find artifact
+      id: find
+      run: |
+        ARTIFACT=$(find build -type f -name "*.jar" | head -n 1) || true
+        if [ -z "$ARTIFACT" ]; then
+          echo "No jar found" && exit 1
+        fi
+        echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+
+    - name: Download release asset if present
+      if: ${{ github.event.release.assets && github.event.release.assets.length > 0 }}
+      run: |
+        ASSET_URL=$(jq -r '.release.assets[0].url' < $GITHUB_EVENT_PATH)
+        AUTH_HEADER="Authorization: token $GITHUB_TOKEN"
+        curl -sS -L -H "$AUTH_HEADER" -H "Accept: application/octet-stream" "$ASSET_URL" -o release-asset
+        echo "release_asset=release-asset" >> $GITHUB_OUTPUT
+
+    - name: Prepare file to upload
+      run: |
+        if [ -f release-asset ]; then
+          FILE=release-asset
+        else
+          FILE=${{ steps.find.outputs.artifact }}
+        fi
+        echo "file=$FILE" >> $GITHUB_OUTPUT
+
+    - name: Publish to Modrinth
+      env:
+        MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        MODRINTH_PROJECT: ${{ secrets.MODRINTH_PROJECT }}
+        GITHUB_TAG: ${{ github.event.release.tag_name }}
+      run: |
+        if [ -z "$MODRINTH_TOKEN" ]; then echo "MODRINTH_TOKEN not set" && exit 1; fi
+        if [ -z "$MODRINTH_PROJECT" ]; then echo "MODRINTH_PROJECT not set" && exit 1; fi
+        FILE=${{ steps.prepare.outputs.file }} || true
+        # Create version metadata payload (adjust fields as needed)
+        JSON=$(jq -n --arg v "$GITHUB_TAG" '{version_number: $v, name: $v, changelog: "Release " + $v, game_versions: ["1.20.4"], loaders: ["fabric"], release_type: "release"}')
+        echo "$JSON" > version.json
+        # Create version
+        RESP=$(curl -s -X POST "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT/version" -H "Authorization: $MODRINTH_TOKEN" -F "metadata=@version.json" -F "file=@${{ steps.prepare.outputs.file }}")
+        echo "$RESP"
