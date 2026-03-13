@@ -12,6 +12,8 @@ Built for servers that use `[G]`/`[L]` channel prefixes and `/tell` for direct m
 - **Sound notifications** — pling sound when messages arrive in inactive tabs; louder distinct pling for name mentions
 - **Name mention detection** — detects your player name in `[G]` messages and plays an alert
 - **Auto channel switching** — selecting a tab sends the appropriate `/g` or `/l` command to the server
+- **Idle auto-switch to All** — optional timeout to fall back from Local/DM tabs to All after inactivity
+- **DM failure mirroring** — delivery errors like offline/unreachable players are mirrored into the relevant DM tab instead of only being noticeable in All
 - **Chat Heads compatibility** — strips `[PlayerName head]` placeholders before parsing
 
 ## Installation
@@ -21,6 +23,16 @@ Requires [Fabric Loader](https://fabricmc.net/) and [Fabric API](https://modrint
 1. Download the latest JAR from [Releases](https://github.com/paraf0x/mc_chat_tabs/releases)
 2. Drop it into your `mods/` folder
 3. Launch the game
+
+## Commands
+
+Client-side settings command:
+
+- `/chattabs idle` — show current idle timeout
+- `/chattabs idle <seconds>` — switch active Local/DM context back to All after that many seconds of inactivity
+- `/chattabs idle never` — disable idle auto-switching
+
+The setting is stored in `config/chattabs.json`.
 
 ## Building
 

@@ -1,9 +1,10 @@
 package com.chattabs.tab;
 
+import com.chattabs.ChatHudAccessor;
+import com.chattabs.ChatTabsConfig;
 import com.chattabs.chat.ChatChannel;
 import com.chattabs.chat.ChatMessage;
 import com.chattabs.chat.ChatParser;
-import com.chattabs.ChatHudAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
@@ -14,22 +15,27 @@ import java.util.*;
 
 public class TabManager {
     private static TabManager instance;
+    private static final long DM_FAILURE_CONTEXT_WINDOW_MS = 5_000L;
 
     private final List<ChatTab> fixedTabs;
-    private final Map<String, ChatTab> dmTabs;  // player name -> tab
+    private final Map<String, ChatTab> dmTabs;
     private ChatTab activeTab;
     private final List<TabChangeListener> listeners;
 
+    private long activeTabLastActivityAt = System.currentTimeMillis();
+    private String lastOutgoingDmPlayer;
+    private long lastOutgoingDmAt;
+    private String forcedVisibleMessage;
+    private long forcedVisibleMessageAt;
+
     private TabManager() {
         this.fixedTabs = new ArrayList<>();
-        this.dmTabs = new LinkedHashMap<>();  // Maintains insertion order
+        this.dmTabs = new LinkedHashMap<>();
         this.listeners = new ArrayList<>();
 
-        // Create fixed tabs (no Party tab)
         fixedTabs.add(ChatTab.createAllTab());
         fixedTabs.add(ChatTab.createLocalTab());
 
-        // Default to "All" tab
         activeTab = fixedTabs.get(0);
     }
 
@@ -67,8 +73,8 @@ public class TabManager {
             ChatTab oldTab = activeTab;
             activeTab = tab;
             activeTab.clearUnread();
+            touchActiveTabActivity();
 
-            // Send context switch command to server
             if (sendCommand && tab != oldTab) {
                 sendContextSwitchCommand(tab);
             }
@@ -81,11 +87,10 @@ public class TabManager {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null) return;
 
-        // DM tabs don't switch server context - we prefix messages instead
         String command = switch (tab.getChannel()) {
             case GLOBAL -> "g";
             case LOCAL -> "l";
-            case DM -> null;  // Don't send context switch for DM - we prefix messages
+            case DM -> null;
             case SYSTEM -> null;
         };
 
@@ -94,15 +99,21 @@ public class TabManager {
         }
     }
 
-    /**
-     * Returns the prefix to add to outgoing messages for the current tab.
-     * For DM tabs, returns "/tell playername ", for others returns null.
-     */
     public String getOutgoingMessagePrefix() {
         if (activeTab.isDmTab() && activeTab.getDmPlayerName() != null) {
             return "/tell " + activeTab.getDmPlayerName() + " ";
         }
         return null;
+    }
+
+    public void noteOutgoingMessage() {
+        touchActiveTabActivity();
+
+        if (activeTab.isDmTab() && activeTab.getDmPlayerName() != null) {
+            lastOutgoingDmPlayer = activeTab.getDmPlayerName();
+            lastOutgoingDmAt = System.currentTimeMillis();
+            getOrCreateDmTab(activeTab.getDmPlayerName());
+        }
     }
 
     public void setActiveTabById(String tabId) {
@@ -133,24 +144,28 @@ public class TabManager {
         String key = playerName.toLowerCase();
         ChatTab tab = dmTabs.remove(key);
         if (tab != null && activeTab == tab) {
-            // Switch to "All" tab if closing active DM tab
-            setActiveTab(fixedTabs.get(0));
+            setActiveTab(fixedTabs.get(0), false);
         }
     }
 
     public void onMessageReceived(Text message, ChatHudLine hudLine) {
         ChatMessage parsed = ChatParser.parse(message);
 
-        // Auto-create DM tab for new conversations (before routing so it gets the message)
         if (parsed.isDM() && parsed.getSenderName() != null) {
             getOrCreateDmTab(parsed.getSenderName());
         }
 
-        // Route message to appropriate tabs
+        boolean mirroredDmFailure = mirrorLikelyDmFailure(message, hudLine, parsed);
+
         boolean playedSound = false;
         for (ChatTab tab : getAllTabs()) {
             if (tab.shouldShowMessage(parsed)) {
                 tab.addMessage(hudLine);
+
+                if (tab == activeTab) {
+                    touchActiveTabActivity();
+                }
+
                 if (tab != activeTab && tab.shouldTrackUnread()) {
                     tab.incrementUnread();
                     if (!playedSound) {
@@ -161,10 +176,56 @@ public class TabManager {
             }
         }
 
-        // Mentions always play sound, even if on the active tab
         if (!playedSound && parsed.isMention()) {
             playNotificationSound(parsed);
         }
+
+        if (mirroredDmFailure && activeTab.isDmTab() && activeTab.getDmPlayerName() != null
+                && activeTab.getDmPlayerName().equalsIgnoreCase(lastOutgoingDmPlayer)) {
+            forceDisplayMessage(message.getString());
+        }
+    }
+
+    private boolean mirrorLikelyDmFailure(Text message, ChatHudLine hudLine, ChatMessage parsed) {
+        if (parsed.getChannel() != ChatChannel.SYSTEM) {
+            return false;
+        }
+
+        if (lastOutgoingDmPlayer == null) {
+            return false;
+        }
+
+        if (System.currentTimeMillis() - lastOutgoingDmAt > DM_FAILURE_CONTEXT_WINDOW_MS) {
+            return false;
+        }
+
+        String text = message.getString().toLowerCase(Locale.ROOT);
+        if (!looksLikeDmDeliveryFailure(text)) {
+            return false;
+        }
+
+        ChatTab dmTab = getOrCreateDmTab(lastOutgoingDmPlayer);
+        dmTab.addMessage(hudLine);
+
+        if (dmTab != activeTab) {
+            dmTab.incrementUnread();
+        } else {
+            touchActiveTabActivity();
+        }
+
+        return true;
+    }
+
+    private boolean looksLikeDmDeliveryFailure(String text) {
+        return text.contains("not online")
+                || text.contains("offline")
+                || text.contains("unknown player")
+                || text.contains("player not found")
+                || text.contains("cannot message")
+                || text.contains("can't message")
+                || text.contains("unable to message")
+                || text.contains("no player was found")
+                || text.contains("not accepting messages");
     }
 
     private void playNotificationSound(ChatMessage parsed) {
@@ -179,8 +240,11 @@ public class TabManager {
     }
 
     public boolean shouldDisplayMessage(Text message) {
-        // "All" tab shows everything
         if (activeTab.getId().equals("all")) {
+            return true;
+        }
+
+        if (shouldForceDisplay(message)) {
             return true;
         }
 
@@ -200,8 +264,50 @@ public class TabManager {
         listeners.remove(listener);
     }
 
+    public void checkIdleTimeout() {
+        if (activeTab == null || activeTab.getId().equals("all")) {
+            return;
+        }
+
+        ChatTabsConfig config = ChatTabsConfig.getInstance();
+        if (config.isIdleSwitchDisabled()) {
+            return;
+        }
+
+        long timeoutMs = config.getIdleSwitchSeconds() * 1000L;
+        if (System.currentTimeMillis() - activeTabLastActivityAt >= timeoutMs) {
+            setActiveTab(fixedTabs.get(0), false);
+        }
+    }
+
+    private void touchActiveTabActivity() {
+        activeTabLastActivityAt = System.currentTimeMillis();
+    }
+
+    private void forceDisplayMessage(String message) {
+        forcedVisibleMessage = message;
+        forcedVisibleMessageAt = System.currentTimeMillis();
+    }
+
+    private boolean shouldForceDisplay(Text message) {
+        if (forcedVisibleMessage == null) {
+            return false;
+        }
+
+        if (System.currentTimeMillis() - forcedVisibleMessageAt > 2_000L) {
+            forcedVisibleMessage = null;
+            return false;
+        }
+
+        if (forcedVisibleMessage.equals(message.getString())) {
+            forcedVisibleMessage = null;
+            return true;
+        }
+
+        return false;
+    }
+
     private void notifyTabChanged(ChatTab oldTab, ChatTab newTab) {
-        // Refresh chat display with new tab's messages
         refreshChatDisplay();
 
         for (TabChangeListener listener : listeners) {
