@@ -1,0 +1,42 @@
+name: Sync from Modrinth
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        ref: modrinth/publish-workflow
+
+    - name: Fetch metadata from Modrinth
+      env:
+        MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        MODRINTH_PROJECT: ${{ secrets.MODRINTH_PROJECT }}
+      run: |
+        if [ -z "$MODRINTH_TOKEN" ]; then echo "MODRINTH_TOKEN not set" && exit 1; fi
+        if [ -z "$MODRINTH_PROJECT" ]; then echo "MODRINTH_PROJECT not set" && exit 1; fi
+        # Get project data
+        curl -s -H "Authorization: $MODRINTH_TOKEN" "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT" -o project.json
+        # Get versions
+        curl -s -H "Authorization: $MODRINTH_TOKEN" "https://api.modrinth.com/v2/project/$MODRINTH_PROJECT/version" -o versions.json
+        # Extract description -> DESCRIPTION.md
+        jq -r '.description' project.json > DESCRIPTION.md || true
+        # Compose CHANGELOG.md from versions
+        echo "# Changelog (from Modrinth)" > CHANGELOG.md
+        jq -r '.[] | ("## " + (.name // .version_number) + " - " + (.date_published // "" ) + "\n\n" + (.changelog // "No changelog provided") + "\n")' versions.json >> CHANGELOG.md || true
+
+    - name: Commit and push
+      run: |
+        git config user.email "openclaw@local"
+        git config user.name "OpenClaw Bot"
+        git add DESCRIPTION.md CHANGELOG.md || true
+        git commit -m "Sync description & changelog from Modrinth" || echo "No changes to commit"
+        git push origin modrinth/publish-workflow
+
+    - name: Create PR (if needed)
+      run: |
+        gh pr create --title "Sync: Modrinth → repo (description/changelog)" --body "Sync Modrinth project description and changelog into the repository. Ensure MODRINTH_TOKEN and MODRINTH_PROJECT secrets are set before running." --head modrinth/publish-workflow --base main || true
