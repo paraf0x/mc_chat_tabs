@@ -99,6 +99,13 @@ public class TabManager {
         }
     }
 
+    private void sendGlobalCommandForAllTab() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.player == null) return;
+
+        client.player.networkHandler.sendChatCommand("g");
+    }
+
     public String getOutgoingMessagePrefix() {
         if (activeTab.isDmTab() && activeTab.getDmPlayerName() != null) {
             return "/tell " + activeTab.getDmPlayerName() + " ";
@@ -276,7 +283,8 @@ public class TabManager {
 
         long timeoutMs = config.getIdleSwitchSeconds() * 1000L;
         if (System.currentTimeMillis() - activeTabLastActivityAt >= timeoutMs) {
-            setActiveTab(fixedTabs.get(0), false);
+            setActiveTab(fixedTabs.get(0), true);
+            sendGlobalCommandForAllTab();
         }
     }
 
