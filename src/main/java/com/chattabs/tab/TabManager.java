@@ -21,6 +21,7 @@ public class TabManager {
     private final Map<String, ChatTab> dmTabs;
     private ChatTab activeTab;
     private final List<TabChangeListener> listeners;
+    private final List<Text> globalPeekMessages;
 
     private long activeTabLastActivityAt = System.currentTimeMillis();
     private String lastOutgoingDmPlayer;
@@ -32,6 +33,7 @@ public class TabManager {
         this.fixedTabs = new ArrayList<>();
         this.dmTabs = new LinkedHashMap<>();
         this.listeners = new ArrayList<>();
+        this.globalPeekMessages = new ArrayList<>();
 
         fixedTabs.add(ChatTab.createAllTab());
         fixedTabs.add(ChatTab.createLocalTab());
@@ -162,6 +164,7 @@ public class TabManager {
             getOrCreateDmTab(parsed.getSenderName());
         }
 
+        recordGlobalPeekMessage(parsed, message);
         boolean mirroredDmFailure = mirrorLikelyDmFailure(message, hudLine, parsed);
 
         boolean playedSound = false;
@@ -190,6 +193,18 @@ public class TabManager {
         if (mirroredDmFailure && activeTab.isDmTab() && activeTab.getDmPlayerName() != null
                 && activeTab.getDmPlayerName().equalsIgnoreCase(lastOutgoingDmPlayer)) {
             forceDisplayMessage(message.getString());
+        }
+    }
+
+    private void recordGlobalPeekMessage(ChatMessage parsed, Text message) {
+        if (parsed.getChannel() != ChatChannel.GLOBAL) {
+            return;
+        }
+
+        int maxMessages = Math.max(1, ChatTabsConfig.getInstance().getGlobalPeekLines());
+        globalPeekMessages.add(message.copy());
+        while (globalPeekMessages.size() > maxMessages) {
+            globalPeekMessages.remove(0);
         }
     }
 
@@ -257,6 +272,14 @@ public class TabManager {
 
         ChatMessage parsed = ChatParser.parse(message);
         return activeTab.shouldShowMessage(parsed);
+    }
+
+    public boolean isAllTabActive() {
+        return activeTab != null && "all".equals(activeTab.getId());
+    }
+
+    public List<Text> getGlobalPeekMessages() {
+        return List.copyOf(globalPeekMessages);
     }
 
     public String getActivePrefix() {
@@ -337,6 +360,7 @@ public class TabManager {
         for (ChatTab tab : getAllTabs()) {
             tab.clearMessages();
         }
+        globalPeekMessages.clear();
     }
 
     public interface TabChangeListener {

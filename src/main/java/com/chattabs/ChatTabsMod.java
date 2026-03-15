@@ -1,6 +1,7 @@
 package com.chattabs;
 
 import com.chattabs.tab.TabManager;
+import com.chattabs.ui.GlobalPeekOverlay;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -22,6 +23,7 @@ public class ChatTabsMod implements ClientModInitializer {
         TabManager.getInstance();
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> TabManager.getInstance().checkIdleTimeout());
+        GlobalPeekOverlay.register();
         registerClientCommands();
 
         LOGGER.info("Chat Tabs Mod initialized!");

@@ -17,6 +17,8 @@ public class ChatTabsConfig {
     private static ChatTabsConfig instance;
 
     private int idleSwitchSeconds = -1;
+    private boolean globalPeekEnabled = true;
+    private int globalPeekLines = 4;
 
     public static ChatTabsConfig getInstance() {
         if (instance == null) {
@@ -39,6 +41,22 @@ public class ChatTabsConfig {
 
     public String getIdleSwitchLabel() {
         return isIdleSwitchDisabled() ? "never" : idleSwitchSeconds + "s";
+    }
+
+    public boolean isGlobalPeekEnabled() {
+        return globalPeekEnabled;
+    }
+
+    public void setGlobalPeekEnabled(boolean globalPeekEnabled) {
+        this.globalPeekEnabled = globalPeekEnabled;
+    }
+
+    public int getGlobalPeekLines() {
+        return Math.max(1, globalPeekLines);
+    }
+
+    public void setGlobalPeekLines(int globalPeekLines) {
+        this.globalPeekLines = Math.max(1, globalPeekLines);
     }
 
     public void save() {
