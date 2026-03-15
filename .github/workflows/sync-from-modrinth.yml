@@ -9,8 +9,6 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v4
-      with:
-        ref: modrinth/publish-workflow
 
     - name: Fetch metadata from Modrinth
       env:
@@ -35,8 +33,15 @@ jobs:
         git config user.name "OpenClaw Bot"
         git add DESCRIPTION.md CHANGELOG.md || true
         git commit -m "Sync description & changelog from Modrinth" || echo "No changes to commit"
-        git push origin modrinth/publish-workflow
+        git push
 
     - name: Create PR (if needed)
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        gh pr create --title "Sync: Modrinth → repo (description/changelog)" --body "Sync Modrinth project description and changelog into the repository. Ensure MODRINTH_TOKEN and MODRINTH_PROJECT secrets are set before running." --head modrinth/publish-workflow --base main || true
+        CURRENT_BRANCH=$(git branch --show-current)
+        if [ "$CURRENT_BRANCH" != "main" ]; then
+          gh pr create --title "Sync: Modrinth → repo (description/changelog)" \
+            --body "Sync Modrinth project description and changelog into the repository." \
+            --head "$CURRENT_BRANCH" --base main || true
+        fi
