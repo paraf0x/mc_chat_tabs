@@ -52,11 +52,6 @@ public abstract class ChatScreenMixin extends Screen {
         ChatFocusHelper.refocusImmediate();
     }
 
-    @Inject(method = "charTyped", at = @At("TAIL"))
-    private void onCharTyped(CallbackInfoReturnable<Boolean> cir) {
-        ChatFocusHelper.refocusImmediate();
-    }
-
     @ModifyVariable(method = "sendMessage", at = @At("HEAD"), argsOnly = true)
     private String prefixDmMessage(String message) {
         if (message.startsWith("/") || message.trim().isEmpty()) {

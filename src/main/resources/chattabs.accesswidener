@@ -4,3 +4,6 @@ accessWidener v2 named
 accessible field net/minecraft/client/gui/hud/ChatHud messages Ljava/util/List;
 accessible field net/minecraft/client/gui/hud/ChatHud visibleMessages Ljava/util/List;
 accessible method net/minecraft/client/gui/hud/ChatHud addVisibleMessage (Lnet/minecraft/client/gui/hud/ChatHudLine;)V
+accessible method net/minecraft/client/gui/hud/ChatHud getWidth ()I
+accessible method net/minecraft/client/gui/hud/ChatHud getHeight ()I
+accessible method net/minecraft/client/gui/hud/ChatHud getChatScale ()D

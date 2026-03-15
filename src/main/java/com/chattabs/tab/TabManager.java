@@ -12,10 +12,12 @@ import net.minecraft.sound.SoundEvents;
 import net.minecraft.text.Text;
 
 import java.util.*;
+import java.util.regex.Pattern;
 
 public class TabManager {
     private static TabManager instance;
     private static final long DM_FAILURE_CONTEXT_WINDOW_MS = 5_000L;
+    private static final Pattern CHAT_HEADS_PATTERN = Pattern.compile("\\[\\w+ head\\]");
 
     private final List<ChatTab> fixedTabs;
     private final Map<String, ChatTab> dmTabs;
@@ -24,10 +26,12 @@ public class TabManager {
     private final List<Text> globalPeekMessages;
 
     private long activeTabLastActivityAt = System.currentTimeMillis();
+    private ChatChannel lastServerChannel = ChatChannel.GLOBAL;
     private String lastOutgoingDmPlayer;
     private long lastOutgoingDmAt;
     private String forcedVisibleMessage;
     private long forcedVisibleMessageAt;
+    private long lastPeekMessageAt;
 
     private TabManager() {
         this.fixedTabs = new ArrayList<>();
@@ -89,7 +93,18 @@ public class TabManager {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null) return;
 
-        String command = switch (tab.getChannel()) {
+        ChatChannel targetChannel;
+        if ("all".equals(tab.getId())) {
+            targetChannel = ChatChannel.GLOBAL;
+        } else {
+            targetChannel = tab.getChannel();
+        }
+
+        if (targetChannel == lastServerChannel) {
+            return;
+        }
+
+        String command = switch (targetChannel) {
             case GLOBAL -> "g";
             case LOCAL -> "l";
             case DM -> null;
@@ -98,14 +113,8 @@ public class TabManager {
 
         if (command != null) {
             client.player.networkHandler.sendChatCommand(command);
+            lastServerChannel = targetChannel;
         }
-    }
-
-    private void sendGlobalCommandForAllTab() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null) return;
-
-        client.player.networkHandler.sendChatCommand("g");
     }
 
     public String getOutgoingMessagePrefix() {
@@ -201,11 +210,17 @@ public class TabManager {
             return;
         }
 
+        // Strip "[PlayerName head]" placeholders from Chat Heads mod and build clean text
+        String raw = CHAT_HEADS_PATTERN.matcher(message.getString()).replaceAll("").trim();
+        // Remove the [G] prefix for peek display
+        String display = raw.replaceFirst("^\\[G\\]\\s*", "");
+
         int maxMessages = Math.max(1, ChatTabsConfig.getInstance().getGlobalPeekLines());
-        globalPeekMessages.add(message.copy());
+        globalPeekMessages.add(Text.literal(display));
         while (globalPeekMessages.size() > maxMessages) {
             globalPeekMessages.remove(0);
         }
+        lastPeekMessageAt = System.currentTimeMillis();
     }
 
     private boolean mirrorLikelyDmFailure(Text message, ChatHudLine hudLine, ChatMessage parsed) {
@@ -282,6 +297,10 @@ public class TabManager {
         return List.copyOf(globalPeekMessages);
     }
 
+    public long getLastPeekMessageAt() {
+        return lastPeekMessageAt;
+    }
+
     public String getActivePrefix() {
         return activeTab.getOutgoingPrefix();
     }
@@ -307,7 +326,6 @@ public class TabManager {
         long timeoutMs = config.getIdleSwitchSeconds() * 1000L;
         if (System.currentTimeMillis() - activeTabLastActivityAt >= timeoutMs) {
             setActiveTab(fixedTabs.get(0), true);
-            sendGlobalCommandForAllTab();
         }
     }
 
