@@ -31,10 +31,8 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
-        // Register chat field for refocus helper
         ChatFocusHelper.setChatField(this.chatField);
 
-        // Create tab bar above chat
         tabBar = new TabBar(2, this.height - 40, this.width - 4);
         this.addDrawableChild(tabBar);
     }
@@ -46,23 +44,24 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Inject(method = "mouseClicked", at = @At("RETURN"))
     private void onMouseClicked(CallbackInfoReturnable<Boolean> cir) {
-        // Always keep focus on chat field after any click (especially tab clicks)
-        if (chatField != null) {
-            this.setFocused(chatField);
-            chatField.setFocused(true);
-        }
+        ChatFocusHelper.refocus();
+    }
+
+    @Inject(method = "keyPressed", at = @At("TAIL"))
+    private void onKeyPressed(CallbackInfoReturnable<Boolean> cir) {
+        ChatFocusHelper.refocusImmediate();
     }
 
     @ModifyVariable(method = "sendMessage", at = @At("HEAD"), argsOnly = true)
     private String prefixDmMessage(String message) {
-        // Don't modify commands or empty messages
-        // Empty message + prefix would send "/tell player" which puts server in permanent DM mode
         if (message.startsWith("/") || message.trim().isEmpty()) {
             return message;
         }
 
-        // Prefix with /tell player for DM tabs
-        String prefix = TabManager.getInstance().getOutgoingMessagePrefix();
+        TabManager tabManager = TabManager.getInstance();
+        tabManager.noteOutgoingMessage();
+
+        String prefix = tabManager.getOutgoingMessagePrefix();
         if (prefix != null) {
             return prefix + message;
         }

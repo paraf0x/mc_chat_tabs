@@ -1,8 +1,11 @@
 package com.chattabs.mixin;
 
 import com.chattabs.ChatHudAccessor;
+import com.chattabs.ChatTabsConfig;
 import com.chattabs.tab.TabManager;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.gui.hud.ChatHudLine;
 import net.minecraft.client.gui.hud.MessageIndicator;
@@ -38,12 +41,30 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
         return 0;
     }
 
+    @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V",
+            at = @At("HEAD"))
+    private void onRenderHead(DrawContext context, TextRenderer textRenderer, int tickDelta, int screenWidth, int screenHeight, boolean focused, boolean bl, CallbackInfo ci) {
+        ChatTabsConfig config = ChatTabsConfig.getInstance();
+        if (config.hasChatOffset()) {
+            context.getMatrices().pushMatrix();
+            context.getMatrices().translate(config.getChatOffsetX(), config.getChatOffsetY());
+        }
+    }
+
+    @Inject(method = "render(Lnet/minecraft/client/gui/DrawContext;Lnet/minecraft/client/font/TextRenderer;IIIZZ)V",
+            at = @At("RETURN"))
+    private void onRenderReturn(DrawContext context, TextRenderer textRenderer, int tickDelta, int screenWidth, int screenHeight, boolean focused, boolean bl, CallbackInfo ci) {
+        ChatTabsConfig config = ChatTabsConfig.getInstance();
+        if (config.hasChatOffset()) {
+            context.getMatrices().popMatrix();
+        }
+    }
+
     @Inject(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;Lnet/minecraft/client/gui/hud/MessageIndicator;)V",
             at = @At("HEAD"), cancellable = true)
     private void onAddMessage(Text message, MessageSignatureData signatureData, MessageIndicator indicator, CallbackInfo ci) {
         TabManager tabManager = TabManager.getInstance();
 
-        // Create a ChatHudLine with current tick count for proper fading
         ChatHudLine hudLine = new ChatHudLine(
             getCurrentTicks(),
             message,
@@ -51,18 +72,11 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
             indicator
         );
 
-        // Route message to tabs
         tabManager.onMessageReceived(message, hudLine);
 
-        // Only show in ChatHud if current tab should display this message
         if (!tabManager.shouldDisplayMessage(message)) {
             ci.cancel();
-            return;
         }
-
-        // For All tab, let vanilla handle it
-        // For other tabs, we still need the message to be added,
-        // but only if it passes the filter (which we checked above)
     }
 
     @Inject(method = "clear", at = @At("HEAD"))
@@ -75,12 +89,9 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
     @Unique
     @Override
     public void chattabs$refreshWithMessages(List<ChatHudLine> tabMessages) {
-        // Clear existing messages
         this.messages.clear();
         this.visibleMessages.clear();
 
-        // Add messages from the tab (they're stored newest-first, so reverse to add oldest first)
-        // Messages keep their original tick count so fading works correctly
         for (int i = tabMessages.size() - 1; i >= 0; i--) {
             ChatHudLine line = tabMessages.get(i);
             this.messages.add(0, line);

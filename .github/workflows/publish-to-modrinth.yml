@@ -1,0 +1,118 @@
+name: Publish to Modrinth
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Update mod_version from tag
+      run: |
+        TAG="${{ github.event.release.tag_name }}"
+        VERSION="${TAG#v}"
+        sed -i "s/^mod_version=.*/mod_version=$VERSION/" gradle.properties
+
+    - name: Set up JDK
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
+
+    - name: Extract game version from gradle.properties
+      id: props
+      run: |
+        MC_VERSION=$(grep '^minecraft_version=' gradle.properties | cut -d'=' -f2)
+        MOD_VERSION=$(grep '^mod_version=' gradle.properties | cut -d'=' -f2)
+        echo "mc_version=$MC_VERSION" >> $GITHUB_OUTPUT
+        echo "mod_version=$MOD_VERSION" >> $GITHUB_OUTPUT
+
+    - name: Build
+      run: |
+        chmod +x ./gradlew || true
+        ./gradlew --no-daemon build
+
+    - name: Find artifact
+      id: find
+      run: |
+        ARTIFACT=$(find build/libs -type f -name "*.jar" ! -name "*-sources.jar" ! -name "*-dev.jar" | head -n 1)
+        if [ -z "$ARTIFACT" ]; then
+          echo "No jar found" && exit 1
+        fi
+        echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+
+    - name: Download release asset if present
+      id: asset
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        ASSET_COUNT=$(jq '.release.assets | length' < "$GITHUB_EVENT_PATH")
+        if [ "$ASSET_COUNT" -gt 0 ]; then
+          ASSET_URL=$(jq -r '.release.assets[0].url' < "$GITHUB_EVENT_PATH")
+          curl -sS -L -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/octet-stream" "$ASSET_URL" -o release-asset.jar
+          echo "has_asset=true" >> $GITHUB_OUTPUT
+        else
+          echo "has_asset=false" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Prepare file to upload
+      id: prepare
+      run: |
+        if [ "${{ steps.asset.outputs.has_asset }}" = "true" ]; then
+          echo "file=release-asset.jar" >> $GITHUB_OUTPUT
+        else
+          echo "file=${{ steps.find.outputs.artifact }}" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Publish to Modrinth
+      env:
+        MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        MODRINTH_PROJECT: ${{ secrets.MODRINTH_PROJECT }}
+        GITHUB_TAG: ${{ github.event.release.tag_name }}
+        MC_VERSION: ${{ steps.props.outputs.mc_version }}
+        RELEASE_BODY: ${{ github.event.release.body }}
+      run: |
+        if [ -z "$MODRINTH_TOKEN" ]; then echo "MODRINTH_TOKEN not set" && exit 1; fi
+        if [ -z "$MODRINTH_PROJECT" ]; then echo "MODRINTH_PROJECT not set" && exit 1; fi
+
+        FILE="${{ steps.prepare.outputs.file }}"
+        CHANGELOG="${RELEASE_BODY:-Release $GITHUB_TAG}"
+
+        JSON=$(jq -n \
+          --arg pid "$MODRINTH_PROJECT" \
+          --arg v "$GITHUB_TAG" \
+          --arg mc "$MC_VERSION" \
+          --arg body "$CHANGELOG" \
+          '{
+            project_id: $pid,
+            version_number: $v,
+            name: $v,
+            changelog: $body,
+            game_versions: [$mc],
+            loaders: ["fabric"],
+            dependencies: [{project_id: "P7dR8mSH", dependency_type: "required"}],
+            release_channel: "release",
+            featured: true,
+            file_parts: ["file"]
+          }')
+
+        RESP=$(curl -s -w "\n%{http_code}" -X POST "https://api.modrinth.com/v2/version" \
+          -H "Authorization: $MODRINTH_TOKEN" \
+          -F "data=$JSON" \
+          -F "file=@$FILE")
+
+        HTTP_CODE=$(echo "$RESP" | tail -1)
+        BODY=$(echo "$RESP" | sed '$d')
+        echo "$BODY"
+
+        if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+          echo "Modrinth API returned HTTP $HTTP_CODE"
+          exit 1
+        fi
