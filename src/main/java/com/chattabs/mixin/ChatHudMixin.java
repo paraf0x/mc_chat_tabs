@@ -3,6 +3,7 @@ package com.chattabs.mixin;
 import com.chattabs.ChatHudAccessor;
 import com.chattabs.ChatTabsConfig;
 import com.chattabs.tab.TabManager;
+import com.chattabs.ui.ChatLayoutMath;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
@@ -45,9 +46,11 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
             at = @At("HEAD"))
     private void onRenderHead(DrawContext context, TextRenderer textRenderer, int tickDelta, int screenWidth, int screenHeight, boolean focused, boolean bl, CallbackInfo ci) {
         ChatTabsConfig config = ChatTabsConfig.getInstance();
-        if (config.hasChatOffset()) {
+        int offsetX = ChatLayoutMath.getChatRenderOffsetX(config);
+        int offsetY = ChatLayoutMath.getChatRenderOffsetY(config);
+        if (offsetX != 0 || offsetY != 0) {
             context.getMatrices().pushMatrix();
-            context.getMatrices().translate(config.getChatOffsetX(), config.getChatOffsetY());
+            context.getMatrices().translate(offsetX, offsetY);
         }
     }
 
@@ -55,7 +58,9 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
             at = @At("RETURN"))
     private void onRenderReturn(DrawContext context, TextRenderer textRenderer, int tickDelta, int screenWidth, int screenHeight, boolean focused, boolean bl, CallbackInfo ci) {
         ChatTabsConfig config = ChatTabsConfig.getInstance();
-        if (config.hasChatOffset()) {
+        int offsetX = ChatLayoutMath.getChatRenderOffsetX(config);
+        int offsetY = ChatLayoutMath.getChatRenderOffsetY(config);
+        if (offsetX != 0 || offsetY != 0) {
             context.getMatrices().popMatrix();
         }
     }

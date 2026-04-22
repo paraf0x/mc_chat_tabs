@@ -7,7 +7,6 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
@@ -21,9 +20,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class GlobalPeekOverlay {
-    private static final int PADDING = 4;
-    private static final int LINE_HEIGHT = 9;
-    private static final int HEADER_GAP = 2;
+    private static final int PADDING = ChatLayoutMath.PEEK_PADDING;
+    private static final int LINE_HEIGHT = ChatLayoutMath.PEEK_LINE_HEIGHT;
+    private static final int HEADER_GAP = ChatLayoutMath.PEEK_HEADER_GAP;
     private static final int BG_COLOR = 0x88000000;
     private static final int HEADER_COLOR = 0xFFAAAAAA;
     private static final int TEXT_COLOR = 0xFFFFFFFF;
@@ -80,14 +79,11 @@ public final class GlobalPeekOverlay {
         int textAlpha = (int) (opacity * 255);
         if (textAlpha <= 4) return;
 
-        double scale = client.options.getChatScale().getValue();
-        if (scale <= 0) return;
-
         int chatWidth;
         if (config.hasPeekWidth()) {
             chatWidth = config.getPeekWidth();
         } else {
-            chatWidth = (int) (ChatHud.getWidth(client.options.getChatWidth().getValue()) * scale);
+            chatWidth = ChatLayoutMath.getChatWidth(client);
         }
         int maxLines = Math.max(1, config.getGlobalPeekLines());
         int textWidth = chatWidth - PADDING * 2;
@@ -115,8 +111,8 @@ public final class GlobalPeekOverlay {
             y = config.getPeekY();
         } else {
             int screenHeight = client.getWindow().getScaledHeight();
-            x = PADDING;
-            y = screenHeight - 54 - height;
+            x = ChatLayoutMath.getAutoPeekX();
+            y = ChatLayoutMath.getAutoPeekY(screenHeight, height);
         }
 
         int bgColor = (alpha << 24);

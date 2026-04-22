@@ -3,7 +3,8 @@ plugins {
     id 'java'
 }
 
-version = project.mod_version
+def buildTimestamp = new Date().format("yyyyMMddHHmmss", TimeZone.getTimeZone("UTC"))
+version = "${project.mod_version}+${buildTimestamp}"
 group = project.maven_group
 
 base {

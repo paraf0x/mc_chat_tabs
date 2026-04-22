@@ -185,7 +185,7 @@ public class TabManager {
                     touchActiveTabActivity();
                 }
 
-                if (tab != activeTab && tab.shouldTrackUnread()) {
+                if (tab != activeTab && tab.shouldTrackUnread() && !isSingleWindowMode()) {
                     tab.incrementUnread();
                     if (!playedSound) {
                         playNotificationSound(parsed);
@@ -244,7 +244,7 @@ public class TabManager {
         ChatTab dmTab = getOrCreateDmTab(lastOutgoingDmPlayer);
         dmTab.addMessage(hudLine);
 
-        if (dmTab != activeTab) {
+        if (dmTab != activeTab && !isSingleWindowMode()) {
             dmTab.incrementUnread();
         } else {
             touchActiveTabActivity();
@@ -277,6 +277,10 @@ public class TabManager {
     }
 
     public boolean shouldDisplayMessage(Text message) {
+        if (isSingleWindowMode()) {
+            return true;
+        }
+
         if (activeTab.getId().equals("all")) {
             return true;
         }
@@ -370,7 +374,11 @@ public class TabManager {
 
         ChatHud chatHud = client.inGameHud.getChatHud();
         if (chatHud instanceof ChatHudAccessor accessor) {
-            accessor.chattabs$refreshWithMessages(activeTab.getMessages());
+            ChatTab tabToDisplay = activeTab;
+            if (isSingleWindowMode() && !fixedTabs.isEmpty()) {
+                tabToDisplay = fixedTabs.get(0);
+            }
+            accessor.chattabs$refreshWithMessages(tabToDisplay.getMessages());
         }
     }
 
@@ -379,6 +387,23 @@ public class TabManager {
             tab.clearMessages();
         }
         globalPeekMessages.clear();
+    }
+
+    public void refreshForModeChange() {
+        if (isSingleWindowMode()) {
+            clearUnreadCounts();
+        }
+        refreshChatDisplay();
+    }
+
+    public boolean isSingleWindowMode() {
+        return ChatTabsConfig.getInstance().isSingleWindowMode();
+    }
+
+    private void clearUnreadCounts() {
+        for (ChatTab tab : getAllTabs()) {
+            tab.clearUnread();
+        }
     }
 
     public interface TabChangeListener {

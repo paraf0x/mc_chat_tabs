@@ -57,6 +57,43 @@ public class ChatTabsMod implements ClientModInitializer {
                                             context.getSource().sendFeedback(Text.literal("ChatTabs idle auto-switch set to " + seconds + "s."));
                                             return 1;
                                         })))
+                        .then(ClientCommandManager.literal("mode")
+                                .executes(context -> {
+                                    ChatTabsConfig config = ChatTabsConfig.getInstance();
+                                    context.getSource().sendFeedback(Text.literal(
+                                            "ChatTabs mode: " + config.getChatMode().getCommandName()));
+                                    return 1;
+                                })
+                                .then(ClientCommandManager.literal("filtered")
+                                        .executes(context -> {
+                                            ChatTabsConfig config = ChatTabsConfig.getInstance();
+                                            config.setChatMode(ChatTabsConfig.ChatMode.FILTERED);
+                                            config.save();
+                                            TabManager.getInstance().refreshForModeChange();
+                                            context.getSource().sendFeedback(Text.literal(
+                                                    "ChatTabs mode set to filtered tabs."));
+                                            return 1;
+                                        }))
+                                .then(ClientCommandManager.literal("single")
+                                        .executes(context -> {
+                                            ChatTabsConfig config = ChatTabsConfig.getInstance();
+                                            config.setChatMode(ChatTabsConfig.ChatMode.SINGLE_WINDOW);
+                                            config.save();
+                                            TabManager.getInstance().refreshForModeChange();
+                                            context.getSource().sendFeedback(Text.literal(
+                                                    "ChatTabs mode set to single-window tabs."));
+                                            return 1;
+                                        }))
+                                .then(ClientCommandManager.literal("single-window")
+                                        .executes(context -> {
+                                            ChatTabsConfig config = ChatTabsConfig.getInstance();
+                                            config.setChatMode(ChatTabsConfig.ChatMode.SINGLE_WINDOW);
+                                            config.save();
+                                            TabManager.getInstance().refreshForModeChange();
+                                            context.getSource().sendFeedback(Text.literal(
+                                                    "ChatTabs mode set to single-window tabs."));
+                                            return 1;
+                                        })))
                         .then(ClientCommandManager.literal("peek")
                                 .executes(context -> {
                                     ChatTabsConfig config = ChatTabsConfig.getInstance();

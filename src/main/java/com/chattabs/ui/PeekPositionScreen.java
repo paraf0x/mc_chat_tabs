@@ -39,26 +39,24 @@ public class PeekPositionScreen extends Screen {
     @Override
     protected void init() {
         ChatTabsConfig config = ChatTabsConfig.getInstance();
-        double scale = Math.max(client.options.getChatScale().getValue(), 0.1);
-        int defaultChatW = (int) (ChatHud.getWidth(client.options.getChatWidth().getValue()) * scale);
+        int defaultChatW = ChatLayoutMath.getChatWidth(client);
 
         // --- Peek ---
         peekW = config.hasPeekWidth() ? config.getPeekWidth() : defaultChatW;
-        peekH = 8 + 2 + 9 * (config.getGlobalPeekLines() + 1);
+        peekH = ChatLayoutMath.computePeekHeight(config.getGlobalPeekLines());
         if (config.hasPeekPosition()) {
             peekX = config.getPeekX();
             peekY = config.getPeekY();
         } else {
-            peekX = 4;
-            peekY = height - 54 - peekH;
+            peekX = ChatLayoutMath.getAutoPeekX();
+            peekY = ChatLayoutMath.getAutoPeekY(height, peekH);
         }
 
         // --- Chat ---
         chatW = defaultChatW;
-        chatH = (int) (ChatHud.getHeight(client.options.getChatHeightFocused().getValue()) * scale);
-        // Vanilla chat renders at bottom-left (x=4, y=screenH-40-chatH roughly)
-        chatX = 4 + config.getChatOffsetX();
-        chatY = height - 40 - chatH + config.getChatOffsetY();
+        chatH = ChatLayoutMath.getChatHeight(client);
+        chatX = ChatLayoutMath.getConfiguredChatX(config);
+        chatY = ChatLayoutMath.getConfiguredChatY(config, height, chatH);
 
         clampPeek();
         clampChat();
@@ -95,7 +93,8 @@ public class PeekPositionScreen extends Screen {
         // Size labels
         String peekLabel = "Peek: " + peekW + "x" + peekH;
         context.drawTextWithShadow(textRenderer, peekLabel, peekX, peekY - 10, PEEK_BORDER);
-        String chatLabel = "Chat offset: " + (chatX - 4) + ", " + (chatY - (height - 40 - chatH));
+        String chatLabel = "Chat offset: " + (chatX - ChatLayoutMath.CHAT_BASE_X)
+                + ", " + (chatY - ChatLayoutMath.getVanillaChatY(height, chatH));
         context.drawTextWithShadow(textRenderer, chatLabel, chatX, chatY - 10, CHAT_BORDER);
 
         // Instructions
@@ -201,10 +200,8 @@ public class PeekPositionScreen extends Screen {
         config.setPeekWidth(peekW);
 
         // Save chat offset (relative to vanilla position)
-        double scale = Math.max(client.options.getChatScale().getValue(), 0.1);
-        int vanillaChatX = 4;
-        int vanillaChatY = height - 40 - (int) (ChatHud.getHeight(client.options.getChatHeightFocused().getValue()) * scale);
-        config.setChatOffset(chatX - vanillaChatX, chatY - vanillaChatY);
+        int vanillaChatY = ChatLayoutMath.getVanillaChatY(height, chatH);
+        config.setChatOffset(chatX - ChatLayoutMath.CHAT_BASE_X, chatY - vanillaChatY);
 
         config.save();
         super.close();

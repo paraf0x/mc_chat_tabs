@@ -20,15 +20,13 @@ public class ChatFocusHelper {
         if (currentChatField == null) return;
 
         // Immediate refocus
-        currentChatField.setFocused(true);
-        currentChatField.setEditable(true);
+        focusAndUnlockField();
 
         // Also schedule for next tick in case something else steals focus
         pendingRefocus = true;
         MinecraftClient.getInstance().execute(() -> {
             if (pendingRefocus && currentChatField != null) {
-                currentChatField.setFocused(true);
-                currentChatField.setEditable(true);
+                focusAndUnlockField();
                 pendingRefocus = false;
             }
         });
@@ -36,8 +34,12 @@ public class ChatFocusHelper {
 
     public static void refocusImmediate() {
         if (currentChatField != null) {
-            currentChatField.setFocused(true);
-            currentChatField.setEditable(true);
+            focusAndUnlockField();
         }
+    }
+
+    private static void focusAndUnlockField() {
+        currentChatField.setFocused(true);
+        currentChatField.setEditable(true);
     }
 }

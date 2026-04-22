@@ -11,6 +11,7 @@ import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class TabBar extends ClickableWidget {
@@ -56,26 +57,20 @@ public class TabBar extends ClickableWidget {
     protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
         TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
         TabManager tabManager = TabManager.getInstance();
-        List<ChatTab> fixedTabs = tabManager.getFixedTabs();
-        List<ChatTab> dmTabs = tabManager.getDmTabs();
         ChatTab activeTab = tabManager.getActiveTab();
+        boolean showUnreadIndicators = !tabManager.isSingleWindowMode();
 
-        int currentX = getX();
-
-        // Render fixed tabs
-        for (ChatTab tab : fixedTabs) {
-            currentX = renderTab(context, textRenderer, tab, currentX, mouseX, mouseY, activeTab, false);
-        }
-
-        // Render DM tabs inline (with close button)
-        for (ChatTab tab : dmTabs) {
-            currentX = renderTab(context, textRenderer, tab, currentX, mouseX, mouseY, activeTab, true);
+        for (TabSlot slot : buildTabSlots(tabManager, textRenderer)) {
+            renderTab(context, textRenderer, slot, mouseX, mouseY, activeTab, showUnreadIndicators);
         }
     }
 
-    private int renderTab(DrawContext context, TextRenderer textRenderer, ChatTab tab, int x, int mouseX, int mouseY, ChatTab activeTab, boolean showCloseButton) {
+    private void renderTab(DrawContext context, TextRenderer textRenderer, TabSlot slot, int mouseX, int mouseY,
+                           ChatTab activeTab, boolean showUnreadIndicators) {
+        ChatTab tab = slot.tab();
+        int x = slot.x();
+        int tabWidth = slot.width();
         int textWidth = textRenderer.getWidth(tab.getDisplayName());
-        int tabWidth = textWidth + TAB_PADDING * 2 + (showCloseButton ? CLOSE_BUTTON_WIDTH : 0);
         boolean isActive = tab == activeTab;
         boolean isHovered = isMouseOverArea(mouseX, mouseY, x, getY(), tabWidth, TAB_HEIGHT);
 
@@ -88,7 +83,7 @@ public class TabBar extends ClickableWidget {
         context.drawText(textRenderer, tab.getDisplayName(), x + TAB_PADDING, getY() + 3, textColor, false);
 
         // Unread indicator (only for non-active tabs)
-        if (tab.getUnreadCount() > 0 && !isActive) {
+        if (showUnreadIndicators && tab.getUnreadCount() > 0 && !isActive) {
             String unreadText = tab.getUnreadCount() > 99 ? "99+" : String.valueOf(tab.getUnreadCount());
             int unreadWidth = textRenderer.getWidth(unreadText) + 4;
             int unreadX = x + TAB_PADDING + textWidth + 2;
@@ -97,13 +92,11 @@ public class TabBar extends ClickableWidget {
         }
 
         // Close button for DM tabs
-        if (showCloseButton) {
-            int closeX = x + tabWidth - CLOSE_BUTTON_WIDTH;
+        if (slot.dmTab()) {
+            int closeX = slot.closeX();
             boolean closeHovered = isMouseOverArea(mouseX, mouseY, closeX, getY(), CLOSE_BUTTON_WIDTH, TAB_HEIGHT);
             context.drawText(textRenderer, "x", closeX + 2, getY() + 3, closeHovered ? COLOR_TEXT : COLOR_TEXT_DIM, false);
         }
-
-        return x + tabWidth + TAB_MARGIN;
     }
 
     @Override
@@ -115,42 +108,40 @@ public class TabBar extends ClickableWidget {
 
         TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
         TabManager tabManager = TabManager.getInstance();
-        List<ChatTab> fixedTabs = tabManager.getFixedTabs();
-        List<ChatTab> dmTabs = tabManager.getDmTabs();
-
-        int currentX = getX();
-
-        // Check fixed tabs
-        for (ChatTab tab : fixedTabs) {
-            int tabWidth = textRenderer.getWidth(tab.getDisplayName()) + TAB_PADDING * 2;
-            if (isMouseOverArea((int) mouseX, (int) mouseY, currentX, getY(), tabWidth, TAB_HEIGHT)) {
-                tabManager.setActiveTab(tab);
-                // Don't return true - let the click "fall through" so focus stays on chat
-                return false;
-            }
-            currentX += tabWidth + TAB_MARGIN;
-        }
-
-        // Check DM tabs (with close button)
-        for (ChatTab tab : dmTabs) {
-            int textWidth = textRenderer.getWidth(tab.getDisplayName());
-            int tabWidth = textWidth + TAB_PADDING * 2 + CLOSE_BUTTON_WIDTH;
-
-            if (isMouseOverArea((int) mouseX, (int) mouseY, currentX, getY(), tabWidth, TAB_HEIGHT)) {
-                // Check if close button was clicked
-                int closeX = currentX + tabWidth - CLOSE_BUTTON_WIDTH;
-                if (mouseX >= closeX) {
-                    tabManager.closeDmTab(tab.getDmPlayerName());
+        for (TabSlot slot : buildTabSlots(tabManager, textRenderer)) {
+            if (isMouseOverArea((int) mouseX, (int) mouseY, slot.x(), getY(), slot.width(), TAB_HEIGHT)) {
+                if (slot.dmTab() && mouseX >= slot.closeX() && mouseX < slot.closeX() + CLOSE_BUTTON_WIDTH) {
+                    tabManager.closeDmTab(slot.tab().getDmPlayerName());
                 } else {
-                    tabManager.setActiveTab(tab);
+                    tabManager.setActiveTab(slot.tab());
                 }
                 // Don't return true - let the click "fall through" so focus stays on chat
                 return false;
             }
-            currentX += tabWidth + TAB_MARGIN;
         }
 
         return false;
+    }
+
+    private List<TabSlot> buildTabSlots(TabManager tabManager, TextRenderer textRenderer) {
+        List<TabSlot> slots = new ArrayList<>();
+        int currentX = getX();
+
+        for (ChatTab tab : tabManager.getFixedTabs()) {
+            int tabWidth = textRenderer.getWidth(tab.getDisplayName()) + TAB_PADDING * 2;
+            slots.add(new TabSlot(tab, currentX, tabWidth, false, -1));
+            currentX += tabWidth + TAB_MARGIN;
+        }
+
+        for (ChatTab tab : tabManager.getDmTabs()) {
+            int textWidth = textRenderer.getWidth(tab.getDisplayName());
+            int tabWidth = textWidth + TAB_PADDING * 2 + CLOSE_BUTTON_WIDTH;
+            int closeX = currentX + tabWidth - CLOSE_BUTTON_WIDTH;
+            slots.add(new TabSlot(tab, currentX, tabWidth, true, closeX));
+            currentX += tabWidth + TAB_MARGIN;
+        }
+
+        return slots;
     }
 
     private boolean isMouseOverArea(int mouseX, int mouseY, int x, int y, int width, int height) {
@@ -160,5 +151,8 @@ public class TabBar extends ClickableWidget {
     @Override
     protected void appendClickableNarrations(NarrationMessageBuilder builder) {
         // Accessibility narration for screen readers
+    }
+
+    private record TabSlot(ChatTab tab, int x, int width, boolean dmTab, int closeX) {
     }
 }

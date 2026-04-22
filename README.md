@@ -12,6 +12,7 @@ Built for servers that use `[G]`/`[L]` channel prefixes and `/tell` for direct m
 - **Sound notifications** — pling sound when messages arrive in inactive tabs; louder distinct pling for name mentions
 - **Name mention detection** — detects your player name in `[G]` messages and plays an alert
 - **Auto channel switching** — selecting a tab sends the appropriate `/g` or `/l` command to the server
+- **Selectable chat mode** — switch between filtered tabs and single-window send-target tabs via command
 - **Idle auto-switch to All** — optional timeout to fall back from Local/DM tabs to All after inactivity
 - **DM failure mirroring** — delivery errors like offline/unreachable players are mirrored into the relevant DM tab instead of only being noticeable in All
 - **Chat Heads compatibility** — strips `[PlayerName head]` placeholders before parsing
@@ -31,6 +32,16 @@ Client-side settings command:
 - `/chattabs idle` — show current idle timeout
 - `/chattabs idle <seconds>` — switch active Local/DM context back to All after that many seconds of inactivity
 - `/chattabs idle never` — disable idle auto-switching
+- `/chattabs mode` — show current chat mode
+- `/chattabs mode filtered` — classic Chat Tabs behavior (tab-based message filtering)
+- `/chattabs mode single` (or `single-window`) — keep vanilla single chat window, tabs only set send target and active highlight
+- `/chattabs peek` — show global peek status and line count
+- `/chattabs peek on|off` — enable/disable global peek overlay
+- `/chattabs peek lines <count>` — set peek lines (1-10)
+- `/chattabs peek position` — open draggable layout screen
+- `/chattabs peek reset` — reset peek position/width to auto
+- `/chattabs layout` — open layout screen for chat offset + peek placement
+- `/chattabs layout reset` — reset chat offset and peek layout defaults
 
 The setting is stored in `config/chattabs.json`.
 

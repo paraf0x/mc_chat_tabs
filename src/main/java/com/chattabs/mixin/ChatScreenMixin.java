@@ -6,7 +6,9 @@ import com.chattabs.ui.TabBar;
 import net.minecraft.client.gui.screen.ChatScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.text.Text;
+import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -21,6 +23,9 @@ public abstract class ChatScreenMixin extends Screen {
 
     @Shadow
     protected TextFieldWidget chatField;
+
+    @Shadow
+    protected abstract void setChatFromHistory(int offset);
 
     @Unique
     private TabBar tabBar;
@@ -47,8 +52,24 @@ public abstract class ChatScreenMixin extends Screen {
         ChatFocusHelper.refocus();
     }
 
-    @Inject(method = "keyPressed", at = @At("TAIL"))
-    private void onKeyPressed(CallbackInfoReturnable<Boolean> cir) {
+    @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
+    private void onKeyPressed(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
+        int key = input.key();
+        if (key == GLFW.GLFW_KEY_UP) {
+            setChatFromHistory(-1);
+            ChatFocusHelper.refocusImmediate();
+            cir.setReturnValue(true);
+            return;
+        }
+        if (key == GLFW.GLFW_KEY_DOWN) {
+            setChatFromHistory(1);
+            ChatFocusHelper.refocusImmediate();
+            cir.setReturnValue(true);
+        }
+    }
+
+    @Inject(method = "setChatFromHistory", at = @At("TAIL"))
+    private void onSetChatFromHistory(int offset, CallbackInfo ci) {
         ChatFocusHelper.refocusImmediate();
     }
 

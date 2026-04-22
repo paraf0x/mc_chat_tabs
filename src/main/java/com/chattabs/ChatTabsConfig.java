@@ -24,6 +24,7 @@ public class ChatTabsConfig {
     private int peekWidth = -1;  // -1 = auto (match chat width)
     private int chatOffsetX = 0;
     private int chatOffsetY = 0;
+    private ChatMode chatMode = ChatMode.FILTERED;
 
     public static ChatTabsConfig getInstance() {
         if (instance == null) {
@@ -121,6 +122,18 @@ public class ChatTabsConfig {
         this.chatOffsetY = 0;
     }
 
+    public ChatMode getChatMode() {
+        return chatMode == null ? ChatMode.FILTERED : chatMode;
+    }
+
+    public boolean isSingleWindowMode() {
+        return getChatMode() == ChatMode.SINGLE_WINDOW;
+    }
+
+    public void setChatMode(ChatMode chatMode) {
+        this.chatMode = chatMode == null ? ChatMode.FILTERED : chatMode;
+    }
+
     public void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
@@ -137,6 +150,7 @@ public class ChatTabsConfig {
             try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
                 ChatTabsConfig loaded = GSON.fromJson(reader, ChatTabsConfig.class);
                 if (loaded != null) {
+                    loaded.normalize();
                     return loaded;
                 }
             } catch (IOException exception) {
@@ -145,7 +159,33 @@ public class ChatTabsConfig {
         }
 
         ChatTabsConfig config = new ChatTabsConfig();
+        config.normalize();
         config.save();
         return config;
+    }
+
+    private void normalize() {
+        this.globalPeekLines = Math.max(1, globalPeekLines);
+        if (peekWidth != -1) {
+            this.peekWidth = Math.max(60, peekWidth);
+        }
+        if (chatMode == null) {
+            this.chatMode = ChatMode.FILTERED;
+        }
+    }
+
+    public enum ChatMode {
+        FILTERED("filtered"),
+        SINGLE_WINDOW("single-window");
+
+        private final String commandName;
+
+        ChatMode(String commandName) {
+            this.commandName = commandName;
+        }
+
+        public String getCommandName() {
+            return commandName;
+        }
     }
 }
