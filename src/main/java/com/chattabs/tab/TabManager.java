@@ -5,11 +5,11 @@ import com.chattabs.ChatTabsConfig;
 import com.chattabs.chat.ChatChannel;
 import com.chattabs.chat.ChatMessage;
 import com.chattabs.chat.ChatParser;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.client.gui.hud.ChatHudLine;
-import net.minecraft.sound.SoundEvents;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
+import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 
 import java.util.*;
 import java.util.regex.Pattern;
@@ -23,7 +23,7 @@ public class TabManager {
     private final Map<String, ChatTab> dmTabs;
     private ChatTab activeTab;
     private final List<TabChangeListener> listeners;
-    private final List<Text> globalPeekMessages;
+    private final List<Component> globalPeekMessages;
 
     private long activeTabLastActivityAt = System.currentTimeMillis();
     private ChatChannel lastServerChannel = ChatChannel.GLOBAL;
@@ -90,7 +90,7 @@ public class TabManager {
     }
 
     private void sendContextSwitchCommand(ChatTab tab) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
 
         ChatChannel targetChannel;
@@ -112,7 +112,7 @@ public class TabManager {
         };
 
         if (command != null) {
-            client.player.networkHandler.sendChatCommand(command);
+            client.player.connection.sendCommand(command);
             lastServerChannel = targetChannel;
         }
     }
@@ -166,7 +166,7 @@ public class TabManager {
         }
     }
 
-    public void onMessageReceived(Text message, ChatHudLine hudLine) {
+    public void onMessageReceived(Component message, GuiMessage hudLine) {
         ChatMessage parsed = ChatParser.parse(message);
 
         if (parsed.isDM() && parsed.getSenderName() != null) {
@@ -205,7 +205,7 @@ public class TabManager {
         }
     }
 
-    private void recordGlobalPeekMessage(ChatMessage parsed, Text message) {
+    private void recordGlobalPeekMessage(ChatMessage parsed, Component message) {
         if (parsed.getChannel() != ChatChannel.GLOBAL) {
             return;
         }
@@ -216,14 +216,14 @@ public class TabManager {
         String display = raw.replaceFirst("^\\[G\\]\\s*", "");
 
         int maxMessages = Math.max(1, ChatTabsConfig.getInstance().getGlobalPeekLines());
-        globalPeekMessages.add(Text.literal(display));
+        globalPeekMessages.add(Component.literal(display));
         while (globalPeekMessages.size() > maxMessages) {
             globalPeekMessages.remove(0);
         }
         lastPeekMessageAt = System.currentTimeMillis();
     }
 
-    private boolean mirrorLikelyDmFailure(Text message, ChatHudLine hudLine, ChatMessage parsed) {
+    private boolean mirrorLikelyDmFailure(Component message, GuiMessage hudLine, ChatMessage parsed) {
         if (parsed.getChannel() != ChatChannel.SYSTEM) {
             return false;
         }
@@ -266,17 +266,17 @@ public class TabManager {
     }
 
     private void playNotificationSound(ChatMessage parsed) {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client.player == null) return;
 
         if (parsed.isMention()) {
-            client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+            client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
         } else {
-            client.player.playSound(SoundEvents.BLOCK_NOTE_BLOCK_PLING.value(), 0.5f, 1.0f);
+            client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.5f, 1.0f);
         }
     }
 
-    public boolean shouldDisplayMessage(Text message) {
+    public boolean shouldDisplayMessage(Component message) {
         if (isSingleWindowMode()) {
             return true;
         }
@@ -297,7 +297,7 @@ public class TabManager {
         return activeTab != null && "all".equals(activeTab.getId());
     }
 
-    public List<Text> getGlobalPeekMessages() {
+    public List<Component> getGlobalPeekMessages() {
         return List.copyOf(globalPeekMessages);
     }
 
@@ -342,7 +342,7 @@ public class TabManager {
         forcedVisibleMessageAt = System.currentTimeMillis();
     }
 
-    private boolean shouldForceDisplay(Text message) {
+    private boolean shouldForceDisplay(Component message) {
         if (forcedVisibleMessage == null) {
             return false;
         }
@@ -369,10 +369,10 @@ public class TabManager {
     }
 
     private void refreshChatDisplay() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.inGameHud == null) return;
+        Minecraft client = Minecraft.getInstance();
+        if (client.gui == null) return;
 
-        ChatHud chatHud = client.inGameHud.getChatHud();
+        ChatComponent chatHud = client.gui.getChat();
         if (chatHud instanceof ChatHudAccessor accessor) {
             ChatTab tabToDisplay = activeTab;
             if (isSingleWindowMode() && !fixedTabs.isEmpty()) {

@@ -5,11 +5,11 @@ import com.chattabs.ui.GlobalPeekOverlay;
 import com.chattabs.ui.PeekPositionScreen;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.api.ClientModInitializer;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,128 +33,128 @@ public class ChatTabsMod implements ClientModInitializer {
 
     private void registerClientCommands() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
-                dispatcher.register(ClientCommandManager.literal("chattabs")
-                        .then(ClientCommandManager.literal("idle")
+                dispatcher.register(ClientCommands.literal("chattabs")
+                        .then(ClientCommands.literal("idle")
                                 .executes(context -> {
                                     ChatTabsConfig config = ChatTabsConfig.getInstance();
-                                    context.getSource().sendFeedback(Text.literal("ChatTabs idle auto-switch: " + config.getIdleSwitchLabel()));
+                                    context.getSource().sendFeedback(Component.literal("ChatTabs idle auto-switch: " + config.getIdleSwitchLabel()));
                                     return 1;
                                 })
-                                .then(ClientCommandManager.literal("never")
+                                .then(ClientCommands.literal("never")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.setIdleSwitchSeconds(-1);
                                             config.save();
-                                            context.getSource().sendFeedback(Text.literal("ChatTabs idle auto-switch disabled."));
+                                            context.getSource().sendFeedback(Component.literal("ChatTabs idle auto-switch disabled."));
                                             return 1;
                                         }))
-                                .then(ClientCommandManager.argument("seconds", IntegerArgumentType.integer(1))
+                                .then(ClientCommands.argument("seconds", IntegerArgumentType.integer(1))
                                         .executes(context -> {
                                             int seconds = IntegerArgumentType.getInteger(context, "seconds");
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.setIdleSwitchSeconds(seconds);
                                             config.save();
-                                            context.getSource().sendFeedback(Text.literal("ChatTabs idle auto-switch set to " + seconds + "s."));
+                                            context.getSource().sendFeedback(Component.literal("ChatTabs idle auto-switch set to " + seconds + "s."));
                                             return 1;
                                         })))
-                        .then(ClientCommandManager.literal("mode")
+                        .then(ClientCommands.literal("mode")
                                 .executes(context -> {
                                     ChatTabsConfig config = ChatTabsConfig.getInstance();
-                                    context.getSource().sendFeedback(Text.literal(
+                                    context.getSource().sendFeedback(Component.literal(
                                             "ChatTabs mode: " + config.getChatMode().getCommandName()));
                                     return 1;
                                 })
-                                .then(ClientCommandManager.literal("filtered")
+                                .then(ClientCommands.literal("filtered")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.setChatMode(ChatTabsConfig.ChatMode.FILTERED);
                                             config.save();
                                             TabManager.getInstance().refreshForModeChange();
-                                            context.getSource().sendFeedback(Text.literal(
+                                            context.getSource().sendFeedback(Component.literal(
                                                     "ChatTabs mode set to filtered tabs."));
                                             return 1;
                                         }))
-                                .then(ClientCommandManager.literal("single")
+                                .then(ClientCommands.literal("single")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.setChatMode(ChatTabsConfig.ChatMode.SINGLE_WINDOW);
                                             config.save();
                                             TabManager.getInstance().refreshForModeChange();
-                                            context.getSource().sendFeedback(Text.literal(
+                                            context.getSource().sendFeedback(Component.literal(
                                                     "ChatTabs mode set to single-window tabs."));
                                             return 1;
                                         }))
-                                .then(ClientCommandManager.literal("single-window")
+                                .then(ClientCommands.literal("single-window")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.setChatMode(ChatTabsConfig.ChatMode.SINGLE_WINDOW);
                                             config.save();
                                             TabManager.getInstance().refreshForModeChange();
-                                            context.getSource().sendFeedback(Text.literal(
+                                            context.getSource().sendFeedback(Component.literal(
                                                     "ChatTabs mode set to single-window tabs."));
                                             return 1;
                                         })))
-                        .then(ClientCommandManager.literal("peek")
+                        .then(ClientCommands.literal("peek")
                                 .executes(context -> {
                                     ChatTabsConfig config = ChatTabsConfig.getInstance();
                                     String status = config.isGlobalPeekEnabled() ? "on" : "off";
-                                    context.getSource().sendFeedback(Text.literal("ChatTabs global peek: " + status + " (" + config.getGlobalPeekLines() + " lines)"));
+                                    context.getSource().sendFeedback(Component.literal("ChatTabs global peek: " + status + " (" + config.getGlobalPeekLines() + " lines)"));
                                     return 1;
                                 })
-                                .then(ClientCommandManager.literal("on")
+                                .then(ClientCommands.literal("on")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.setGlobalPeekEnabled(true);
                                             config.save();
-                                            context.getSource().sendFeedback(Text.literal("ChatTabs global peek enabled."));
+                                            context.getSource().sendFeedback(Component.literal("ChatTabs global peek enabled."));
                                             return 1;
                                         }))
-                                .then(ClientCommandManager.literal("off")
+                                .then(ClientCommands.literal("off")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.setGlobalPeekEnabled(false);
                                             config.save();
-                                            context.getSource().sendFeedback(Text.literal("ChatTabs global peek disabled."));
+                                            context.getSource().sendFeedback(Component.literal("ChatTabs global peek disabled."));
                                             return 1;
                                         }))
-                                .then(ClientCommandManager.literal("lines")
-                                        .then(ClientCommandManager.argument("count", IntegerArgumentType.integer(1, 10))
+                                .then(ClientCommands.literal("lines")
+                                        .then(ClientCommands.argument("count", IntegerArgumentType.integer(1, 10))
                                                 .executes(context -> {
                                                     int count = IntegerArgumentType.getInteger(context, "count");
                                                     ChatTabsConfig config = ChatTabsConfig.getInstance();
                                                     config.setGlobalPeekLines(count);
                                                     config.save();
-                                                    context.getSource().sendFeedback(Text.literal("ChatTabs global peek set to " + count + " lines."));
+                                                    context.getSource().sendFeedback(Component.literal("ChatTabs global peek set to " + count + " lines."));
                                                     return 1;
                                                 })))
-                                .then(ClientCommandManager.literal("position")
+                                .then(ClientCommands.literal("position")
                                         .executes(context -> {
                                             // Schedule screen open for next tick (can't open screen from command thread)
-                                            MinecraftClient.getInstance().send(() ->
-                                                    MinecraftClient.getInstance().setScreen(new PeekPositionScreen()));
+                                            Minecraft.getInstance().execute(() ->
+                                                    Minecraft.getInstance().setScreen(new PeekPositionScreen()));
                                             return 1;
                                         }))
-                                .then(ClientCommandManager.literal("reset")
+                                .then(ClientCommands.literal("reset")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.resetPeekPosition();
                                             config.save();
-                                            context.getSource().sendFeedback(Text.literal("ChatTabs peek position reset to auto."));
+                                            context.getSource().sendFeedback(Component.literal("ChatTabs peek position reset to auto."));
                                             return 1;
                                         })))
-                        .then(ClientCommandManager.literal("layout")
+                        .then(ClientCommands.literal("layout")
                                 .executes(context -> {
-                                    MinecraftClient.getInstance().send(() ->
-                                            MinecraftClient.getInstance().setScreen(new PeekPositionScreen()));
+                                    Minecraft.getInstance().execute(() ->
+                                            Minecraft.getInstance().setScreen(new PeekPositionScreen()));
                                     return 1;
                                 })
-                                .then(ClientCommandManager.literal("reset")
+                                .then(ClientCommands.literal("reset")
                                         .executes(context -> {
                                             ChatTabsConfig config = ChatTabsConfig.getInstance();
                                             config.resetPeekPosition();
                                             config.resetChatOffset();
                                             config.save();
-                                            context.getSource().sendFeedback(Text.literal("ChatTabs layout reset to defaults."));
+                                            context.getSource().sendFeedback(Component.literal("ChatTabs layout reset to defaults."));
                                             return 1;
                                         })))));
     }

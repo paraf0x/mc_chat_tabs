@@ -1,7 +1,7 @@
 package com.chattabs.chat;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,14 +32,14 @@ public class ChatParser {
     private static final Pattern DM_INDICATOR_PATTERN = Pattern.compile("[✉].*(?:" + ARROW_CHARS + ").*>", Pattern.CASE_INSENSITIVE);
 
     private static String getOwnPlayerName() {
-        MinecraftClient client = MinecraftClient.getInstance();
+        Minecraft client = Minecraft.getInstance();
         if (client.player != null) {
             return client.player.getName().getString();
         }
         return null;
     }
 
-    public static ChatMessage parse(Text message) {
+    public static ChatMessage parse(Component message) {
         // Strip Chat Heads mod placeholders like "[PlayerName head]"
         String text = CHAT_HEADS_PATTERN.matcher(message.getString()).replaceAll("").trim();
 
@@ -118,7 +118,7 @@ public class ChatParser {
         return new ChatMessage(message, ChatChannel.SYSTEM, null, text);
     }
 
-    public static boolean isChannelMessage(Text message, ChatChannel channel) {
+    public static boolean isChannelMessage(Component message, ChatChannel channel) {
         ChatMessage parsed = parse(message);
         return parsed.getChannel() == channel;
     }

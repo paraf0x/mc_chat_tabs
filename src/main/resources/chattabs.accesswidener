@@ -1,9 +1,7 @@
-accessWidener v2 named
+accessWidener v2 official
 
-# Access to ChatHud internals
-accessible field net/minecraft/client/gui/hud/ChatHud messages Ljava/util/List;
-accessible field net/minecraft/client/gui/hud/ChatHud visibleMessages Ljava/util/List;
-accessible method net/minecraft/client/gui/hud/ChatHud addVisibleMessage (Lnet/minecraft/client/gui/hud/ChatHudLine;)V
-accessible method net/minecraft/client/gui/hud/ChatHud getWidth ()I
-accessible method net/minecraft/client/gui/hud/ChatHud getHeight ()I
-accessible method net/minecraft/client/gui/hud/ChatHud getChatScale ()D
+# Access to ChatComponent internals (MC 26.1.x) used by ChatHudMixin
+accessible field net/minecraft/client/gui/components/ChatComponent allMessages Ljava/util/List;
+accessible field net/minecraft/client/gui/components/ChatComponent trimmedMessages Ljava/util/List;
+accessible method net/minecraft/client/gui/components/ChatComponent addMessageToDisplayQueue (Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V
+accessible method net/minecraft/client/gui/components/ChatComponent addMessageToQueue (Lnet/minecraft/client/multiplayer/chat/GuiMessage;)V

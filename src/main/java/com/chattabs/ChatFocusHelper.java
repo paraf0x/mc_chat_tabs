@@ -1,13 +1,13 @@
 package com.chattabs;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.widget.TextFieldWidget;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.EditBox;
 
 public class ChatFocusHelper {
-    private static TextFieldWidget currentChatField;
+    private static EditBox currentChatField;
     private static boolean pendingRefocus = false;
 
-    public static void setChatField(TextFieldWidget chatField) {
+    public static void setChatField(EditBox chatField) {
         currentChatField = chatField;
     }
 
@@ -24,7 +24,7 @@ public class ChatFocusHelper {
 
         // Also schedule for next tick in case something else steals focus
         pendingRefocus = true;
-        MinecraftClient.getInstance().execute(() -> {
+        Minecraft.getInstance().execute(() -> {
             if (pendingRefocus && currentChatField != null) {
                 focusAndUnlockField();
                 pendingRefocus = false;

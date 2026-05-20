@@ -2,19 +2,19 @@ package com.chattabs.ui;
 
 import com.chattabs.tab.ChatTab;
 import com.chattabs.tab.TabManager;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.widget.ClickableWidget;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class TabBar extends ClickableWidget {
+public class TabBar extends AbstractWidget {
     private static final int TAB_HEIGHT = 14;
     private static final int TAB_PADDING = 4;
     private static final int TAB_MARGIN = 2;
@@ -29,7 +29,7 @@ public class TabBar extends ClickableWidget {
     private static final int CLOSE_BUTTON_WIDTH = 10;
 
     public TabBar(int x, int y, int width) {
-        super(x, y, width, TAB_HEIGHT, Text.empty());
+        super(x, y, width, TAB_HEIGHT, Component.empty());
     }
 
     @Override
@@ -48,14 +48,14 @@ public class TabBar extends ClickableWidget {
     }
 
     @Override
-    public boolean keyPressed(KeyInput input) {
+    public boolean keyPressed(KeyEvent input) {
         // Never consume key events - let ChatScreen handle them
         return false;
     }
 
     @Override
-    protected void renderWidget(DrawContext context, int mouseX, int mouseY, float delta) {
-        TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
+    protected void extractWidgetRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+        Font textRenderer = Minecraft.getInstance().font;
         TabManager tabManager = TabManager.getInstance();
         ChatTab activeTab = tabManager.getActiveTab();
         boolean showUnreadIndicators = !tabManager.isSingleWindowMode();
@@ -65,12 +65,12 @@ public class TabBar extends ClickableWidget {
         }
     }
 
-    private void renderTab(DrawContext context, TextRenderer textRenderer, TabSlot slot, int mouseX, int mouseY,
+    private void renderTab(GuiGraphicsExtractor context, Font textRenderer, TabSlot slot, int mouseX, int mouseY,
                            ChatTab activeTab, boolean showUnreadIndicators) {
         ChatTab tab = slot.tab();
         int x = slot.x();
         int tabWidth = slot.width();
-        int textWidth = textRenderer.getWidth(tab.getDisplayName());
+        int textWidth = textRenderer.width(tab.getDisplayName());
         boolean isActive = tab == activeTab;
         boolean isHovered = isMouseOverArea(mouseX, mouseY, x, getY(), tabWidth, TAB_HEIGHT);
 
@@ -80,33 +80,33 @@ public class TabBar extends ClickableWidget {
 
         // Text
         int textColor = isActive ? COLOR_TEXT : COLOR_TEXT_DIM;
-        context.drawText(textRenderer, tab.getDisplayName(), x + TAB_PADDING, getY() + 3, textColor, false);
+        context.text(textRenderer, tab.getDisplayName(), x + TAB_PADDING, getY() + 3, textColor, false);
 
         // Unread indicator (only for non-active tabs)
         if (showUnreadIndicators && tab.getUnreadCount() > 0 && !isActive) {
             String unreadText = tab.getUnreadCount() > 99 ? "99+" : String.valueOf(tab.getUnreadCount());
-            int unreadWidth = textRenderer.getWidth(unreadText) + 4;
+            int unreadWidth = textRenderer.width(unreadText) + 4;
             int unreadX = x + TAB_PADDING + textWidth + 2;
             context.fill(unreadX, getY() + 2, unreadX + unreadWidth, getY() + 11, COLOR_UNREAD);
-            context.drawText(textRenderer, unreadText, unreadX + 2, getY() + 3, COLOR_TEXT, false);
+            context.text(textRenderer, unreadText, unreadX + 2, getY() + 3, COLOR_TEXT, false);
         }
 
         // Close button for DM tabs
         if (slot.dmTab()) {
             int closeX = slot.closeX();
             boolean closeHovered = isMouseOverArea(mouseX, mouseY, closeX, getY(), CLOSE_BUTTON_WIDTH, TAB_HEIGHT);
-            context.drawText(textRenderer, "x", closeX + 2, getY() + 3, closeHovered ? COLOR_TEXT : COLOR_TEXT_DIM, false);
+            context.text(textRenderer, "x", closeX + 2, getY() + 3, closeHovered ? COLOR_TEXT : COLOR_TEXT_DIM, false);
         }
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != 0) return false;
 
         double mouseX = click.x();
         double mouseY = click.y();
 
-        TextRenderer textRenderer = MinecraftClient.getInstance().textRenderer;
+        Font textRenderer = Minecraft.getInstance().font;
         TabManager tabManager = TabManager.getInstance();
         for (TabSlot slot : buildTabSlots(tabManager, textRenderer)) {
             if (isMouseOverArea((int) mouseX, (int) mouseY, slot.x(), getY(), slot.width(), TAB_HEIGHT)) {
@@ -123,18 +123,18 @@ public class TabBar extends ClickableWidget {
         return false;
     }
 
-    private List<TabSlot> buildTabSlots(TabManager tabManager, TextRenderer textRenderer) {
+    private List<TabSlot> buildTabSlots(TabManager tabManager, Font textRenderer) {
         List<TabSlot> slots = new ArrayList<>();
         int currentX = getX();
 
         for (ChatTab tab : tabManager.getFixedTabs()) {
-            int tabWidth = textRenderer.getWidth(tab.getDisplayName()) + TAB_PADDING * 2;
+            int tabWidth = textRenderer.width(tab.getDisplayName()) + TAB_PADDING * 2;
             slots.add(new TabSlot(tab, currentX, tabWidth, false, -1));
             currentX += tabWidth + TAB_MARGIN;
         }
 
         for (ChatTab tab : tabManager.getDmTabs()) {
-            int textWidth = textRenderer.getWidth(tab.getDisplayName());
+            int textWidth = textRenderer.width(tab.getDisplayName());
             int tabWidth = textWidth + TAB_PADDING * 2 + CLOSE_BUTTON_WIDTH;
             int closeX = currentX + tabWidth - CLOSE_BUTTON_WIDTH;
             slots.add(new TabSlot(tab, currentX, tabWidth, true, closeX));
@@ -149,7 +149,7 @@ public class TabBar extends ClickableWidget {
     }
 
     @Override
-    protected void appendClickableNarrations(NarrationMessageBuilder builder) {
+    protected void updateWidgetNarration(NarrationElementOutput builder) {
         // Accessibility narration for screen readers
     }
 

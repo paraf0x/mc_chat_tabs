@@ -2,7 +2,7 @@ package com.chattabs.tab;
 
 import com.chattabs.chat.ChatChannel;
 import com.chattabs.chat.ChatMessage;
-import net.minecraft.client.gui.hud.ChatHudLine;
+import net.minecraft.client.multiplayer.chat.GuiMessage;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -12,7 +12,7 @@ public class ChatTab {
     private final String displayName;
     private final ChatChannel channel;
     private final String dmPlayerName;  // Only set for DM tabs
-    private final List<ChatHudLine> messages;
+    private final List<GuiMessage> messages;
     private int unreadCount;
 
     public ChatTab(String id, String displayName, ChatChannel channel) {
@@ -48,11 +48,11 @@ public class ChatTab {
         return dmPlayerName != null;
     }
 
-    public List<ChatHudLine> getMessages() {
+    public List<GuiMessage> getMessages() {
         return messages;
     }
 
-    public void addMessage(ChatHudLine message) {
+    public void addMessage(GuiMessage message) {
         messages.add(0, message);  // Add to beginning (newest first)
         // Limit message history
         if (messages.size() > 100) {

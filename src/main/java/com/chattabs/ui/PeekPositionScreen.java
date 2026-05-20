@@ -1,12 +1,11 @@
 package com.chattabs.ui;
 
 import com.chattabs.ChatTabsConfig;
-import net.minecraft.client.gui.Click;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 
 public class PeekPositionScreen extends Screen {
@@ -33,13 +32,13 @@ public class PeekPositionScreen extends Screen {
     private int dragOffsetX, dragOffsetY;
 
     public PeekPositionScreen() {
-        super(Text.literal("Layout Editor"));
+        super(Component.literal("Layout Editor"));
     }
 
     @Override
     protected void init() {
         ChatTabsConfig config = ChatTabsConfig.getInstance();
-        int defaultChatW = ChatLayoutMath.getChatWidth(client);
+        int defaultChatW = ChatLayoutMath.getChatWidth(minecraft);
 
         // --- Peek ---
         peekW = config.hasPeekWidth() ? config.getPeekWidth() : defaultChatW;
@@ -54,7 +53,7 @@ public class PeekPositionScreen extends Screen {
 
         // --- Chat ---
         chatW = defaultChatW;
-        chatH = ChatLayoutMath.getChatHeight(client);
+        chatH = ChatLayoutMath.getChatHeight(minecraft);
         chatX = ChatLayoutMath.getConfiguredChatX(config);
         chatY = ChatLayoutMath.getConfiguredChatY(config, height, chatH);
 
@@ -63,47 +62,47 @@ public class PeekPositionScreen extends Screen {
     }
 
     @Override
-    public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        super.render(context, mouseX, mouseY, delta);
+    public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+        super.extractRenderState(context, mouseX, mouseY, delta);
 
         context.fill(0, 0, width, height, 0x66000000);
 
         // --- Chat box (blue) ---
         drawBox(context, chatX, chatY, chatW, chatH, CHAT_BORDER, BG_COLOR, false);
-        context.drawTextWithShadow(textRenderer, "Chat", chatX + 4, chatY + 4, LABEL_COLOR);
+        context.text(font, "Chat", chatX + 4, chatY + 4, LABEL_COLOR, true);
         String[] chatSamples = { "[G] Player1 > Hello everyone", "[G] Player2 > What's up?", "[L] Nearby > local msg" };
         int cy = chatY + 4 + 11;
         for (String s : chatSamples) {
             if (cy + 9 > chatY + chatH) break;
-            context.drawTextWithShadow(textRenderer, s, chatX + 4, cy, 0xFFBBBBBB);
+            context.text(font, s, chatX + 4, cy, 0xFFBBBBBB, true);
             cy += 9;
         }
 
         // --- Peek box (yellow) ---
         drawBox(context, peekX, peekY, peekW, peekH, PEEK_BORDER, BG_COLOR, true);
-        context.drawTextWithShadow(textRenderer, "Global Peek", peekX + 4, peekY + 4, LABEL_COLOR);
+        context.text(font, "Global Peek", peekX + 4, peekY + 4, LABEL_COLOR, true);
         String[] peekSamples = { "PlayerName > Hello world", "OtherPlayer > Example msg", "Someone > Third line" };
         int py = peekY + 4 + 11;
         for (String s : peekSamples) {
             if (py + 9 > peekY + peekH) break;
-            context.drawTextWithShadow(textRenderer, s, peekX + 4, py, TEXT_COLOR);
+            context.text(font, s, peekX + 4, py, TEXT_COLOR, true);
             py += 9;
         }
 
         // Size labels
         String peekLabel = "Peek: " + peekW + "x" + peekH;
-        context.drawTextWithShadow(textRenderer, peekLabel, peekX, peekY - 10, PEEK_BORDER);
+        context.text(font, peekLabel, peekX, peekY - 10, PEEK_BORDER, true);
         String chatLabel = "Chat offset: " + (chatX - ChatLayoutMath.CHAT_BASE_X)
                 + ", " + (chatY - ChatLayoutMath.getVanillaChatY(height, chatH));
-        context.drawTextWithShadow(textRenderer, chatLabel, chatX, chatY - 10, CHAT_BORDER);
+        context.text(font, chatLabel, chatX, chatY - 10, CHAT_BORDER, true);
 
         // Instructions
         String hint = "Drag to move  |  Orange corner = resize peek  |  ESC = save  |  R = reset all";
-        int hintWidth = textRenderer.getWidth(hint);
-        context.drawTextWithShadow(textRenderer, hint, (width - hintWidth) / 2, 10, HINT_COLOR);
+        int hintWidth = font.width(hint);
+        context.text(font, hint, (width - hintWidth) / 2, 10, HINT_COLOR, true);
     }
 
-    private void drawBox(DrawContext context, int x, int y, int w, int h, int borderColor, int bgColor, boolean resizeHandle) {
+    private void drawBox(GuiGraphicsExtractor context, int x, int y, int w, int h, int borderColor, int bgColor, boolean resizeHandle) {
         context.fill(x - 1, y - 1, x + w + 1, y + h + 1, borderColor);
         context.fill(x, y, x + w, y + h, bgColor);
         if (resizeHandle) {
@@ -112,7 +111,7 @@ public class PeekPositionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseClicked(Click click, boolean doubled) {
+    public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
         if (click.button() != 0) return super.mouseClicked(click, doubled);
         double mx = click.x(), my = click.y();
 
@@ -143,7 +142,7 @@ public class PeekPositionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseReleased(Click click) {
+    public boolean mouseReleased(MouseButtonEvent click) {
         if (click.button() == 0 && dragTarget != DragTarget.NONE) {
             dragTarget = DragTarget.NONE;
             return true;
@@ -152,7 +151,7 @@ public class PeekPositionScreen extends Screen {
     }
 
     @Override
-    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
+    public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
         if (click.button() != 0) return super.mouseDragged(click, deltaX, deltaY);
 
         switch (dragTarget) {
@@ -179,20 +178,20 @@ public class PeekPositionScreen extends Screen {
     }
 
     @Override
-    public boolean keyPressed(KeyInput input) {
+    public boolean keyPressed(KeyEvent input) {
         if (input.key() == GLFW.GLFW_KEY_R) {
             ChatTabsConfig config = ChatTabsConfig.getInstance();
             config.resetPeekPosition();
             config.resetChatOffset();
             config.save();
-            close();
+            onClose();
             return true;
         }
         return super.keyPressed(input);
     }
 
     @Override
-    public void close() {
+    public void onClose() {
         ChatTabsConfig config = ChatTabsConfig.getInstance();
 
         // Save peek
@@ -204,7 +203,7 @@ public class PeekPositionScreen extends Screen {
         config.setChatOffset(chatX - ChatLayoutMath.CHAT_BASE_X, chatY - vanillaChatY);
 
         config.save();
-        super.close();
+        super.onClose();
     }
 
     private boolean isOver(double mx, double my, int bx, int by, int bw, int bh) {

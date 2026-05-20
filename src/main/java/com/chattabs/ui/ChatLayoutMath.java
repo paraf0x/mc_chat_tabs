@@ -1,8 +1,8 @@
 package com.chattabs.ui;
 
 import com.chattabs.ChatTabsConfig;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.ChatComponent;
 
 public final class ChatLayoutMath {
     public static final int CHAT_BASE_X = 4;
@@ -16,14 +16,14 @@ public final class ChatLayoutMath {
     private ChatLayoutMath() {
     }
 
-    public static int getChatWidth(MinecraftClient client) {
-        double scale = Math.max(client.options.getChatScale().getValue(), 0.1);
-        return (int) (ChatHud.getWidth(client.options.getChatWidth().getValue()) * scale);
+    public static int getChatWidth(Minecraft client) {
+        double scale = Math.max(client.options.chatScale().get(), 0.1);
+        return (int) (ChatComponent.getWidth(client.options.chatWidth().get()) * scale);
     }
 
-    public static int getChatHeight(MinecraftClient client) {
-        double scale = Math.max(client.options.getChatScale().getValue(), 0.1);
-        return (int) (ChatHud.getHeight(client.options.getChatHeightFocused().getValue()) * scale);
+    public static int getChatHeight(Minecraft client) {
+        double scale = Math.max(client.options.chatScale().get(), 0.1);
+        return (int) (ChatComponent.getHeight(client.options.chatHeightFocused().get()) * scale);
     }
 
     public static int getVanillaChatY(int screenHeight, int chatHeight) {

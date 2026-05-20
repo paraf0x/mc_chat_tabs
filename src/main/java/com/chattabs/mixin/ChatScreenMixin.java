@@ -3,11 +3,11 @@ package com.chattabs.mixin;
 import com.chattabs.ChatFocusHelper;
 import com.chattabs.tab.TabManager;
 import com.chattabs.ui.TabBar;
-import net.minecraft.client.gui.screen.ChatScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.input.KeyInput;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.ChatScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.Component;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -22,24 +22,24 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ChatScreenMixin extends Screen {
 
     @Shadow
-    protected TextFieldWidget chatField;
+    protected EditBox input;
 
     @Shadow
-    protected abstract void setChatFromHistory(int offset);
+    public abstract void moveInHistory(int dir);
 
     @Unique
     private TabBar tabBar;
 
-    protected ChatScreenMixin(Text title) {
+    protected ChatScreenMixin(Component title) {
         super(title);
     }
 
     @Inject(method = "init", at = @At("TAIL"))
     private void onInit(CallbackInfo ci) {
-        ChatFocusHelper.setChatField(this.chatField);
+        ChatFocusHelper.setChatField(this.input);
 
         tabBar = new TabBar(2, this.height - 40, this.width - 4);
-        this.addDrawableChild(tabBar);
+        this.addRenderableWidget(tabBar);
     }
 
     @Inject(method = "removed", at = @At("HEAD"))
@@ -53,27 +53,27 @@ public abstract class ChatScreenMixin extends Screen {
     }
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void onKeyPressed(KeyInput input, CallbackInfoReturnable<Boolean> cir) {
+    private void onKeyPressed(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
         int key = input.key();
         if (key == GLFW.GLFW_KEY_UP) {
-            setChatFromHistory(-1);
+            moveInHistory(-1);
             ChatFocusHelper.refocusImmediate();
             cir.setReturnValue(true);
             return;
         }
         if (key == GLFW.GLFW_KEY_DOWN) {
-            setChatFromHistory(1);
+            moveInHistory(1);
             ChatFocusHelper.refocusImmediate();
             cir.setReturnValue(true);
         }
     }
 
-    @Inject(method = "setChatFromHistory", at = @At("TAIL"))
-    private void onSetChatFromHistory(int offset, CallbackInfo ci) {
+    @Inject(method = "moveInHistory", at = @At("TAIL"))
+    private void onMoveInHistory(int offset, CallbackInfo ci) {
         ChatFocusHelper.refocusImmediate();
     }
 
-    @ModifyVariable(method = "sendMessage", at = @At("HEAD"), argsOnly = true)
+    @ModifyVariable(method = "handleChatInput", at = @At("HEAD"), argsOnly = true)
     private String prefixDmMessage(String message) {
         if (message.startsWith("/") || message.trim().isEmpty()) {
             return message;

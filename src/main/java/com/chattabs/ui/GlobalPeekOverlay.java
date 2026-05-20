@@ -4,15 +4,15 @@ import com.chattabs.ChatTabsConfig;
 import com.chattabs.tab.TabManager;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.render.RenderTickCounter;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Identifier;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.DeltaTracker;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.Identifier;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -35,7 +35,7 @@ public final class GlobalPeekOverlay {
     public static void register() {
         HudElementRegistry.attachElementBefore(
                 VanillaHudElements.CHAT,
-                Identifier.of("chattabs", "global_peek"),
+                Identifier.fromNamespaceAndPath("chattabs", "global_peek"),
                 GlobalPeekOverlay::render
         );
     }
@@ -43,9 +43,9 @@ public final class GlobalPeekOverlay {
     private static final long FADE_DURATION_MS = 10_000L;
     private static final long FADE_OUT_MS = 2_000L;
 
-    private static void render(DrawContext context, RenderTickCounter tickCounter) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player == null || client.world == null) {
+    private static void render(GuiGraphicsExtractor context, DeltaTracker tickCounter) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || client.level == null) {
             return;
         }
 
@@ -59,7 +59,7 @@ public final class GlobalPeekOverlay {
             return;
         }
 
-        List<Text> messages = tabManager.getGlobalPeekMessages();
+        List<Component> messages = tabManager.getGlobalPeekMessages();
         if (messages.isEmpty()) {
             return;
         }
@@ -88,16 +88,16 @@ public final class GlobalPeekOverlay {
         int maxLines = Math.max(1, config.getGlobalPeekLines());
         int textWidth = chatWidth - PADDING * 2;
 
-        TextRenderer textRenderer = client.textRenderer;
-        List<Text> coloredMessages = new ArrayList<>();
+        Font textRenderer = client.font;
+        List<Component> coloredMessages = new ArrayList<>();
         int startIndex = Math.max(0, messages.size() - maxLines);
         for (int i = startIndex; i < messages.size(); i++) {
             coloredMessages.add(colorizeSender(messages.get(i).getString()));
         }
 
-        List<Text> wrappedLines = new ArrayList<>();
-        for (Text msg : coloredMessages) {
-            List<Text> wrapped = wrapText(textRenderer, msg, textWidth);
+        List<Component> wrappedLines = new ArrayList<>();
+        for (Component msg : coloredMessages) {
+            List<Component> wrapped = wrapText(textRenderer, msg, textWidth);
             wrappedLines.addAll(wrapped);
         }
 
@@ -110,7 +110,7 @@ public final class GlobalPeekOverlay {
             x = config.getPeekX();
             y = config.getPeekY();
         } else {
-            int screenHeight = client.getWindow().getScaledHeight();
+            int screenHeight = context.guiHeight();
             x = ChatLayoutMath.getAutoPeekX();
             y = ChatLayoutMath.getAutoPeekY(screenHeight, height);
         }
@@ -119,20 +119,20 @@ public final class GlobalPeekOverlay {
         context.fill(x, y, x + chatWidth, y + height, bgColor);
 
         int headerColor = (textAlpha << 24) | (HEADER_COLOR & 0x00FFFFFF);
-        context.drawTextWithShadow(textRenderer, "Global", x + PADDING, y + PADDING, headerColor);
+        context.text(textRenderer, "Global", x + PADDING, y + PADDING, headerColor, true);
 
         int textColor = (textAlpha << 24) | (TEXT_COLOR & 0x00FFFFFF);
         int textY = y + PADDING + LINE_HEIGHT + HEADER_GAP;
-        for (Text line : wrappedLines) {
-            context.drawTextWithShadow(textRenderer, line, x + PADDING, textY, textColor);
+        for (Component line : wrappedLines) {
+            context.text(textRenderer, line, x + PADDING, textY, textColor, true);
             textY += LINE_HEIGHT;
         }
     }
 
-    private static Text colorizeSender(String text) {
+    private static Component colorizeSender(String text) {
         Matcher matcher = SENDER_PATTERN.matcher(text);
         if (!matcher.find()) {
-            return Text.literal(text);
+            return Component.literal(text);
         }
 
         String senderPart = matcher.group(1).trim();
@@ -143,23 +143,23 @@ public final class GlobalPeekOverlay {
         String playerName = parts[parts.length - 1];
         String rankPrefix = parts.length > 1 ? senderPart.substring(0, senderPart.lastIndexOf(playerName)).trim() + " " : "";
 
-        MutableText result = Text.empty();
+        MutableComponent result = Component.empty();
         if (!rankPrefix.isEmpty()) {
-            result.append(Text.literal(rankPrefix).setStyle(Style.EMPTY.withColor(Formatting.GRAY)));
+            result.append(Component.literal(rankPrefix).setStyle(Style.EMPTY.withColor(ChatFormatting.GRAY)));
         }
-        result.append(Text.literal(playerName).setStyle(Style.EMPTY.withColor(Formatting.YELLOW)));
-        result.append(Text.literal(" > ").setStyle(Style.EMPTY.withColor(Formatting.DARK_GRAY)));
-        result.append(Text.literal(messagePart).setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+        result.append(Component.literal(playerName).setStyle(Style.EMPTY.withColor(ChatFormatting.YELLOW)));
+        result.append(Component.literal(" > ").setStyle(Style.EMPTY.withColor(ChatFormatting.DARK_GRAY)));
+        result.append(Component.literal(messagePart).setStyle(Style.EMPTY.withColor(ChatFormatting.WHITE)));
 
         return result;
     }
 
-    private static List<Text> wrapText(TextRenderer textRenderer, Text text, int maxWidth) {
-        List<Text> lines = new ArrayList<>();
+    private static List<Component> wrapText(Font textRenderer, Component text, int maxWidth) {
+        List<Component> lines = new ArrayList<>();
         String str = text.getString();
 
         // If it fits in one line, just return it
-        if (textRenderer.getWidth(text) <= maxWidth) {
+        if (textRenderer.width(text) <= maxWidth) {
             lines.add(text);
             return lines;
         }
@@ -169,8 +169,8 @@ public final class GlobalPeekOverlay {
         StringBuilder currentLine = new StringBuilder();
         for (String word : words) {
             String test = currentLine.isEmpty() ? word : currentLine + " " + word;
-            if (textRenderer.getWidth(test) > maxWidth && !currentLine.isEmpty()) {
-                lines.add(Text.literal(currentLine.toString()).setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+            if (textRenderer.width(test) > maxWidth && !currentLine.isEmpty()) {
+                lines.add(Component.literal(currentLine.toString()).setStyle(Style.EMPTY.withColor(ChatFormatting.WHITE)));
                 currentLine = new StringBuilder(word);
             } else {
                 if (!currentLine.isEmpty()) currentLine.append(" ");
@@ -178,7 +178,7 @@ public final class GlobalPeekOverlay {
             }
         }
         if (!currentLine.isEmpty()) {
-            lines.add(Text.literal(currentLine.toString()).setStyle(Style.EMPTY.withColor(Formatting.WHITE)));
+            lines.add(Component.literal(currentLine.toString()).setStyle(Style.EMPTY.withColor(ChatFormatting.WHITE)));
         }
 
         // Keep the first line colorized

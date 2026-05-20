@@ -1,9 +1,9 @@
 package com.chattabs.chat;
 
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public class ChatMessage {
-    private final Text originalMessage;
+    private final Component originalMessage;
     private final ChatChannel channel;
     private final String senderName;  // For DMs: the other player (sender if incoming, recipient if outgoing)
     private final String content;
@@ -11,7 +11,7 @@ public class ChatMessage {
     private boolean outgoing = false;  // For DMs: true if we sent it
     private boolean mention = false;   // True if player's name is mentioned
 
-    public ChatMessage(Text originalMessage, ChatChannel channel, String senderName, String content) {
+    public ChatMessage(Component originalMessage, ChatChannel channel, String senderName, String content) {
         this.originalMessage = originalMessage;
         this.channel = channel;
         this.senderName = senderName;
@@ -19,7 +19,7 @@ public class ChatMessage {
         this.timestamp = System.currentTimeMillis();
     }
 
-    public Text getOriginalMessage() {
+    public Component getOriginalMessage() {
         return originalMessage;
     }
 
