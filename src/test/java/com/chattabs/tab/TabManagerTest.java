@@ -49,6 +49,30 @@ class TabManagerTest {
     }
 
     @Test
+    void typedKingdomJoinCommandRevealsTab() {
+        TabManager manager = TabManager.getInstance();
+        manager.noteOutgoingCommand("/channel join kingdom");
+        assertTrue(manager.isKingdomTabVisible());
+    }
+
+    @Test
+    void typedKingdomJoinCommandIsCaseAndWhitespaceInsensitive() {
+        TabManager manager = TabManager.getInstance();
+        manager.noteOutgoingCommand("/Channel  Join   KINGDOM ");
+        assertTrue(manager.isKingdomTabVisible());
+    }
+
+    @Test
+    void otherCommandsDoNotRevealKingdomTab() {
+        TabManager manager = TabManager.getInstance();
+        manager.noteOutgoingCommand("/g");
+        manager.noteOutgoingCommand("/gift someone");
+        manager.noteOutgoingCommand("/channel join global");
+        manager.noteOutgoingCommand("hello no command");
+        assertFalse(manager.isKingdomTabVisible());
+    }
+
+    @Test
     void closingHiddenKingdomTabKeepsHistory() {
         TabManager manager = TabManager.getInstance();
         Component line = Component.literal("[K] [CrimsonHollow] [Lord of the Hollow] UnicornsBane > brb");

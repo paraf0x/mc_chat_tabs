@@ -162,6 +162,27 @@ public class TabManager {
         }
     }
 
+    /**
+     * Tracks channel-switch commands the user types manually so the mod's
+     * channel state stays in sync (a bare "/g" or "/l" with arguments may
+     * just send a one-off message on some servers, so only exact matches
+     * count as switches).
+     */
+    public void noteOutgoingCommand(String rawInput) {
+        if (rawInput == null || !rawInput.startsWith("/")) return;
+
+        String normalized = rawInput.substring(1).trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+        switch (normalized) {
+            case "g" -> lastServerChannel = ChatChannel.GLOBAL;
+            case "l" -> lastServerChannel = ChatChannel.LOCAL;
+            case "channel join kingdom" -> {
+                lastServerChannel = ChatChannel.KINGDOM;
+                revealKingdomTab();
+            }
+            default -> { }
+        }
+    }
+
     public void setActiveTabById(String tabId) {
         for (ChatTab tab : getAllTabs()) {
             if (tab.getId().equals(tabId)) {

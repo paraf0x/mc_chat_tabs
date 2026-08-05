@@ -75,7 +75,11 @@ public abstract class ChatScreenMixin extends Screen {
 
     @ModifyVariable(method = "handleChatInput", at = @At("HEAD"), argsOnly = true)
     private String prefixDmMessage(String message) {
-        if (message.startsWith("/") || message.trim().isEmpty()) {
+        if (message.startsWith("/")) {
+            TabManager.getInstance().noteOutgoingCommand(message);
+            return message;
+        }
+        if (message.trim().isEmpty()) {
             return message;
         }
 
