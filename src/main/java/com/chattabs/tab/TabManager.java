@@ -37,6 +37,7 @@ public class TabManager {
     private String forcedVisibleMessage;
     private long forcedVisibleMessageAt;
     private long lastPeekMessageAt;
+    private int soundRequests;
 
     private TabManager() {
         this.allTab = ChatTab.createAllTab();
@@ -57,6 +58,14 @@ public class TabManager {
 
     static void resetForTesting() {
         instance = null;
+    }
+
+    int soundRequestsForTesting() {
+        return soundRequests;
+    }
+
+    void resetSoundRequestsForTesting() {
+        soundRequests = 0;
     }
 
     public void applyProfile(ServerProfile profile) {
@@ -270,24 +279,32 @@ public class TabManager {
 
         boolean playedSound = false;
         for (ChatTab tab : getAllTabs()) {
-            if (tab.shouldShowMessage(parsed)) {
-                tab.addMessage(hudLine);
+            if (!tab.shouldShowMessage(parsed)) {
+                continue;
+            }
 
-                if (tab == activeTab) {
-                    touchActiveTabActivity();
-                }
+            tab.addMessage(hudLine);
 
-                if (tab != activeTab && tab.shouldTrackUnread() && !isSingleWindowMode()) {
-                    tab.incrementUnread();
-                    if (!playedSound) {
-                        playNotificationSound(parsed);
-                        playedSound = true;
-                    }
-                }
+            if (tab == activeTab) {
+                touchActiveTabActivity();
+                continue;
+            }
+
+            if (isSingleWindowMode()) {
+                continue;
+            }
+
+            if (tab.shouldTrackUnread()) {
+                tab.incrementUnread();
+            }
+
+            if (!playedSound && !tab.isAllTab() && tab.isSoundEnabled()) {
+                playNotificationSound(parsed);
+                playedSound = true;
             }
         }
 
-        if (!playedSound && parsed.isMention()) {
+        if (!playedSound && parsed.isMention() && soundAllowedFor(parsed)) {
             playNotificationSound(parsed);
         }
 
@@ -360,7 +377,18 @@ public class TabManager {
                 || text.contains("not accepting messages");
     }
 
+    /** A channel with sound disabled stays silent, mentions included. */
+    private boolean soundAllowedFor(ChatMessage parsed) {
+        if (parsed.getKind() != MessageKind.CHANNEL) {
+            return true;
+        }
+        ChatTab tab = getChannelTab(parsed.getChannelId());
+        return tab == null || tab.isSoundEnabled();
+    }
+
     private void playNotificationSound(ChatMessage parsed) {
+        soundRequests++;
+
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
             return;
