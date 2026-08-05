@@ -2,9 +2,11 @@ package com.chattabs.tab;
 
 import com.chattabs.ChatHudAccessor;
 import com.chattabs.ChatTabsConfig;
-import com.chattabs.chat.ChatChannel;
 import com.chattabs.chat.ChatMessage;
 import com.chattabs.chat.ChatParser;
+import com.chattabs.chat.MessageKind;
+import com.chattabs.config.ChannelDefinition;
+import com.chattabs.config.ServerProfile;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
@@ -19,16 +21,17 @@ public class TabManager {
     private static final long DM_FAILURE_CONTEXT_WINDOW_MS = 5_000L;
     private static final Pattern CHAT_HEADS_PATTERN = Pattern.compile("\\[\\w+ head\\]");
 
-    private final List<ChatTab> fixedTabs;
+    private ServerProfile activeProfile;
+    private final ChatTab allTab;
+    private final Map<String, ChatTab> channelTabs = new LinkedHashMap<>(); // config order, key = channel id lowercase
+    private final Set<String> revealedChannels = new HashSet<>();
     private final Map<String, ChatTab> dmTabs;
-    private final ChatTab kingdomTab;
-    private boolean kingdomTabVisible = false;
     private ChatTab activeTab;
     private final List<TabChangeListener> listeners;
     private final List<Component> globalPeekMessages;
 
     private long activeTabLastActivityAt = System.currentTimeMillis();
-    private ChatChannel lastServerChannel = ChatChannel.GLOBAL;
+    private String lastServerChannelId;
     private String lastOutgoingDmPlayer;
     private long lastOutgoingDmAt;
     private String forcedVisibleMessage;
@@ -36,16 +39,13 @@ public class TabManager {
     private long lastPeekMessageAt;
 
     private TabManager() {
-        this.fixedTabs = new ArrayList<>();
+        this.allTab = ChatTab.createAllTab();
         this.dmTabs = new LinkedHashMap<>();
         this.listeners = new ArrayList<>();
         this.globalPeekMessages = new ArrayList<>();
 
-        fixedTabs.add(ChatTab.createAllTab());
-        fixedTabs.add(ChatTab.createLocalTab());
-        kingdomTab = ChatTab.createKingdomTab();
-
-        activeTab = fixedTabs.get(0);
+        applyProfile(ChatTabsConfig.getInstance().profileForAddress(null));
+        activeTab = allTab;
     }
 
     public static TabManager getInstance() {
@@ -59,38 +59,89 @@ public class TabManager {
         instance = null;
     }
 
-    public List<ChatTab> getFixedTabs() {
-        return Collections.unmodifiableList(fixedTabs);
+    public void applyProfile(ServerProfile profile) {
+        ServerProfile effective = profile == null ? ServerProfile.builtInDefault() : profile;
+        Map<String, ChatTab> oldTabs = new LinkedHashMap<>(channelTabs);
+        channelTabs.clear();
+        revealedChannels.clear();
+        for (ChannelDefinition channel : effective.validChannels()) {
+            String key = channel.getId().toLowerCase(Locale.ROOT);
+            ChatTab tab = ChatTab.createChannelTab(channel);
+            ChatTab old = oldTabs.get(key);
+            if (old != null) {
+                tab.getMessages().addAll(old.getMessages());
+            }
+            channelTabs.put(key, tab);
+        }
+        activeProfile = effective;
+        lastServerChannelId = firstChannelId();
+        if (activeTab == null || (activeTab.isChannelTab()
+                && !channelTabs.containsKey(activeTab.getChannelId().toLowerCase(Locale.ROOT)))) {
+            activeTab = allTab;
+        }
+        ChatParser.setActiveProfile(effective);
+        refreshChatDisplay();
+    }
+
+    public ServerProfile getActiveProfile() {
+        return activeProfile;
+    }
+
+    private String firstChannelId() {
+        return channelTabs.isEmpty() ? null : channelTabs.keySet().iterator().next();
+    }
+
+    public ChatTab getChannelTab(String id) {
+        return id == null ? null : channelTabs.get(id.toLowerCase(Locale.ROOT));
+    }
+
+    public boolean isChannelTabVisible(String id) {
+        ChatTab tab = getChannelTab(id);
+        if (tab == null) {
+            return false;
+        }
+        return !tab.isClosable() || revealedChannels.contains(id.toLowerCase(Locale.ROOT));
+    }
+
+    public void revealChannelTab(String id) {
+        if (getChannelTab(id) != null) {
+            revealedChannels.add(id.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    public void closeChannelTab(String id) {
+        ChatTab tab = getChannelTab(id);
+        if (tab == null || !tab.isClosable()) {
+            return;
+        }
+        revealedChannels.remove(id.toLowerCase(Locale.ROOT));
+        if (activeTab == tab) {
+            setActiveTab(allTab, true);
+        }
+    }
+
+    public List<ChatTab> getVisibleTabs() {
+        List<ChatTab> visible = new ArrayList<>();
+        visible.add(allTab);
+        for (ChatTab tab : channelTabs.values()) {
+            if (!tab.isClosable() || revealedChannels.contains(tab.getId().toLowerCase(Locale.ROOT))) {
+                visible.add(tab);
+            }
+        }
+        visible.addAll(dmTabs.values());
+        return visible;
+    }
+
+    public List<ChatTab> getAllTabs() {
+        List<ChatTab> all = new ArrayList<>();
+        all.add(allTab);
+        all.addAll(channelTabs.values());
+        all.addAll(dmTabs.values());
+        return all;
     }
 
     public List<ChatTab> getDmTabs() {
         return new ArrayList<>(dmTabs.values());
-    }
-
-    public ChatTab getKingdomTab() {
-        return kingdomTab;
-    }
-
-    public boolean isKingdomTabVisible() {
-        return kingdomTabVisible;
-    }
-
-    public void revealKingdomTab() {
-        kingdomTabVisible = true;
-    }
-
-    public void closeKingdomTab() {
-        kingdomTabVisible = false;
-        if (activeTab == kingdomTab) {
-            setActiveTab(fixedTabs.get(0), true);
-        }
-    }
-
-    public List<ChatTab> getAllTabs() {
-        List<ChatTab> all = new ArrayList<>(fixedTabs);
-        all.add(kingdomTab);
-        all.addAll(dmTabs.values());
-        return all;
     }
 
     public ChatTab getActiveTab() {
@@ -102,7 +153,7 @@ public class TabManager {
     }
 
     public void setActiveTab(ChatTab tab, boolean sendCommand) {
-        if (tab != null && (fixedTabs.contains(tab) || tab == kingdomTab || dmTabs.containsValue(tab))) {
+        if (tab != null && (tab == allTab || channelTabs.containsValue(tab) || dmTabs.containsValue(tab))) {
             ChatTab oldTab = activeTab;
             activeTab = tab;
             activeTab.clearUnread();
@@ -118,31 +169,22 @@ public class TabManager {
 
     private void sendContextSwitchCommand(ChatTab tab) {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) return;
-
-        ChatChannel targetChannel;
-        if ("all".equals(tab.getId())) {
-            targetChannel = ChatChannel.GLOBAL;
-        } else {
-            targetChannel = tab.getChannel();
-        }
-
-        if (targetChannel == lastServerChannel) {
+        if (client == null || client.player == null) {
             return;
         }
 
-        String command = switch (targetChannel) {
-            case GLOBAL -> "g";
-            case LOCAL -> "l";
-            case KINGDOM -> "channel join kingdom";
-            case DM -> null;
-            case SYSTEM -> null;
-        };
-
-        if (command != null) {
-            client.player.connection.sendCommand(command);
-            lastServerChannel = targetChannel;
+        String targetChannelId = tab.isAllTab() ? firstChannelId() : tab.getChannelId();
+        if (targetChannelId == null || targetChannelId.equalsIgnoreCase(lastServerChannelId)) {
+            return;
         }
+
+        ChannelDefinition definition = activeProfile.channelById(targetChannelId);
+        if (definition == null || definition.getJoinCommand().isBlank()) {
+            return;
+        }
+
+        client.player.connection.sendCommand(definition.getJoinCommand());
+        lastServerChannelId = targetChannelId;
     }
 
     public String getOutgoingMessagePrefix() {
@@ -164,22 +206,25 @@ public class TabManager {
 
     /**
      * Tracks channel-switch commands the user types manually so the mod's
-     * channel state stays in sync (a bare "/g" or "/l" with arguments may
+     * channel state stays in sync (a join command with extra arguments may
      * just send a one-off message on some servers, so only exact matches
      * count as switches).
      */
     public void noteOutgoingCommand(String rawInput) {
-        if (rawInput == null || !rawInput.startsWith("/")) return;
+        if (rawInput == null || !rawInput.startsWith("/")) {
+            return;
+        }
 
         String normalized = rawInput.substring(1).trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
-        switch (normalized) {
-            case "g" -> lastServerChannel = ChatChannel.GLOBAL;
-            case "l" -> lastServerChannel = ChatChannel.LOCAL;
-            case "channel join kingdom" -> {
-                lastServerChannel = ChatChannel.KINGDOM;
-                revealKingdomTab();
+        for (ChannelDefinition channel : activeProfile.validChannels()) {
+            String join = channel.getJoinCommand();
+            if (!join.isBlank() && normalized.equals(join.toLowerCase(Locale.ROOT))) {
+                lastServerChannelId = channel.getId();
+                if (!channel.isAlwaysVisible()) {
+                    revealChannelTab(channel.getId());
+                }
+                return;
             }
-            default -> { }
         }
     }
 
@@ -189,12 +234,6 @@ public class TabManager {
                 setActiveTab(tab);
                 return;
             }
-        }
-    }
-
-    public void setActiveTabByIndex(int index) {
-        if (index >= 0 && index < fixedTabs.size()) {
-            setActiveTab(fixedTabs.get(index));
         }
     }
 
@@ -211,7 +250,7 @@ public class TabManager {
         String key = playerName.toLowerCase();
         ChatTab tab = dmTabs.remove(key);
         if (tab != null && activeTab == tab) {
-            setActiveTab(fixedTabs.get(0), false);
+            setActiveTab(allTab, false);
         }
     }
 
@@ -222,8 +261,8 @@ public class TabManager {
             getOrCreateDmTab(parsed.getSenderName());
         }
 
-        if (parsed.getChannel() == ChatChannel.KINGDOM) {
-            revealKingdomTab();
+        if (parsed.getKind() == MessageKind.CHANNEL) {
+            revealChannelTab(parsed.getChannelId());
         }
 
         recordGlobalPeekMessage(parsed, message);
@@ -259,14 +298,17 @@ public class TabManager {
     }
 
     private void recordGlobalPeekMessage(ChatMessage parsed, Component message) {
-        if (parsed.getChannel() != ChatChannel.GLOBAL) {
+        if (parsed.getKind() != MessageKind.CHANNEL || activeProfile == null) {
+            return;
+        }
+        ChannelDefinition definition = activeProfile.channelById(parsed.getChannelId());
+        if (definition == null || !definition.isPeek()) {
             return;
         }
 
-        // Strip "[PlayerName head]" placeholders from Chat Heads mod and build clean text
+        // Strip "[PlayerName head]" placeholders from Chat Heads mod and the channel tag
         String raw = CHAT_HEADS_PATTERN.matcher(message.getString()).replaceAll("").trim();
-        // Remove the [G] prefix for peek display
-        String display = raw.replaceFirst("^\\[G\\]\\s*", "");
+        String display = raw.replaceFirst("^" + Pattern.quote(definition.getTag()) + "\\s*", "");
 
         int maxMessages = Math.max(1, ChatTabsConfig.getInstance().getGlobalPeekLines());
         globalPeekMessages.add(Component.literal(display));
@@ -277,7 +319,7 @@ public class TabManager {
     }
 
     private boolean mirrorLikelyDmFailure(Component message, GuiMessage hudLine, ChatMessage parsed) {
-        if (parsed.getChannel() != ChatChannel.SYSTEM) {
+        if (parsed.getKind() != MessageKind.SYSTEM) {
             return false;
         }
 
@@ -320,7 +362,9 @@ public class TabManager {
 
     private void playNotificationSound(ChatMessage parsed) {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.player == null) return;
+        if (client == null || client.player == null) {
+            return;
+        }
 
         if (parsed.isMention()) {
             client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
@@ -334,7 +378,7 @@ public class TabManager {
             return true;
         }
 
-        if (activeTab.getId().equals("all")) {
+        if (activeTab.isAllTab()) {
             return true;
         }
 
@@ -347,7 +391,7 @@ public class TabManager {
     }
 
     public boolean isAllTabActive() {
-        return activeTab != null && "all".equals(activeTab.getId());
+        return activeTab != null && activeTab.isAllTab();
     }
 
     public List<Component> getGlobalPeekMessages() {
@@ -356,10 +400,6 @@ public class TabManager {
 
     public long getLastPeekMessageAt() {
         return lastPeekMessageAt;
-    }
-
-    public String getActivePrefix() {
-        return activeTab.getOutgoingPrefix();
     }
 
     public void addListener(TabChangeListener listener) {
@@ -371,7 +411,7 @@ public class TabManager {
     }
 
     public void checkIdleTimeout() {
-        if (activeTab == null || activeTab.getId().equals("all")) {
+        if (activeTab == null || activeTab.isAllTab()) {
             return;
         }
 
@@ -382,7 +422,7 @@ public class TabManager {
 
         long timeoutMs = config.getIdleSwitchSeconds() * 1000L;
         if (System.currentTimeMillis() - activeTabLastActivityAt >= timeoutMs) {
-            setActiveTab(fixedTabs.get(0), true);
+            setActiveTab(allTab, true);
         }
     }
 
@@ -423,13 +463,15 @@ public class TabManager {
 
     private void refreshChatDisplay() {
         Minecraft client = Minecraft.getInstance();
-        if (client == null || client.gui == null) return;
+        if (client == null || client.gui == null) {
+            return;
+        }
 
         ChatComponent chatHud = client.gui.hud.getChat();
         if (chatHud instanceof ChatHudAccessor accessor) {
-            ChatTab tabToDisplay = activeTab;
-            if (isSingleWindowMode() && !fixedTabs.isEmpty()) {
-                tabToDisplay = fixedTabs.get(0);
+            ChatTab tabToDisplay = isSingleWindowMode() ? allTab : activeTab;
+            if (tabToDisplay == null) {
+                tabToDisplay = allTab;
             }
             accessor.chattabs$refreshWithMessages(tabToDisplay.getMessages());
         }

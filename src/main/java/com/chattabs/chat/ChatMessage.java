@@ -4,16 +4,19 @@ import net.minecraft.network.chat.Component;
 
 public class ChatMessage {
     private final Component originalMessage;
-    private final ChatChannel channel;
+    private final MessageKind kind;
+    private final String channelId;   // Set for CHANNEL messages, null for DM/SYSTEM
     private final String senderName;  // For DMs: the other player (sender if incoming, recipient if outgoing)
     private final String content;
     private final long timestamp;
     private boolean outgoing = false;  // For DMs: true if we sent it
     private boolean mention = false;   // True if player's name is mentioned
 
-    public ChatMessage(Component originalMessage, ChatChannel channel, String senderName, String content) {
+    public ChatMessage(Component originalMessage, MessageKind kind, String channelId,
+                       String senderName, String content) {
         this.originalMessage = originalMessage;
-        this.channel = channel;
+        this.kind = kind;
+        this.channelId = channelId;
         this.senderName = senderName;
         this.content = content;
         this.timestamp = System.currentTimeMillis();
@@ -23,8 +26,12 @@ public class ChatMessage {
         return originalMessage;
     }
 
-    public ChatChannel getChannel() {
-        return channel;
+    public MessageKind getKind() {
+        return kind;
+    }
+
+    public String getChannelId() {
+        return channelId;
     }
 
     public String getSenderName() {
@@ -40,7 +47,7 @@ public class ChatMessage {
     }
 
     public boolean isDM() {
-        return channel == ChatChannel.DM;
+        return kind == MessageKind.DM;
     }
 
     public boolean isOutgoing() {

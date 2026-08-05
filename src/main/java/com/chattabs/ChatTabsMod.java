@@ -1,10 +1,12 @@
 package com.chattabs;
 
+import com.chattabs.config.ServerProfile;
 import com.chattabs.tab.TabManager;
 import com.chattabs.ui.GlobalPeekOverlay;
 import com.chattabs.ui.PeekPositionScreen;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -26,9 +28,17 @@ public class ChatTabsMod implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> TabManager.getInstance().checkIdleTimeout());
         GlobalPeekOverlay.register();
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
+                TabManager.getInstance().applyProfile(
+                        ChatTabsConfig.getInstance().profileForAddress(currentServerAddress(client))));
         registerClientCommands();
 
         LOGGER.info("Chat Tabs Mod initialized!");
+    }
+
+    private static String currentServerAddress(Minecraft client) {
+        net.minecraft.client.multiplayer.ServerData server = client.getCurrentServer();
+        return server == null ? null : server.ip;
     }
 
     private void registerClientCommands() {
@@ -140,6 +150,24 @@ public class ChatTabsMod implements ClientModInitializer {
                                             config.resetPeekPosition();
                                             config.save();
                                             context.getSource().sendFeedback(Component.literal("ChatTabs peek position reset to auto."));
+                                            return 1;
+                                        })))
+                        .then(ClientCommands.literal("profile")
+                                .executes(context -> {
+                                    ServerProfile profile = TabManager.getInstance().getActiveProfile();
+                                    context.getSource().sendFeedback(Component.literal(
+                                            "ChatTabs profile: " + profile.getName() + " ("
+                                                    + profile.validChannels().size() + " channels)"));
+                                    return 1;
+                                })
+                                .then(ClientCommands.literal("reload")
+                                        .executes(context -> {
+                                            ChatTabsConfig.reload();
+                                            Minecraft client = Minecraft.getInstance();
+                                            TabManager.getInstance().applyProfile(
+                                                    ChatTabsConfig.getInstance().profileForAddress(currentServerAddress(client)));
+                                            context.getSource().sendFeedback(Component.literal(
+                                                    "ChatTabs config reloaded."));
                                             return 1;
                                         })))
                         .then(ClientCommands.literal("layout")

@@ -1,9 +1,13 @@
 package com.chattabs.tab;
 
+import com.chattabs.config.ChannelDefinition;
+import com.chattabs.config.ServerProfile;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -12,74 +16,100 @@ class TabManagerTest {
     @BeforeEach
     void freshManager() {
         TabManager.resetForTesting();
+        TabManager.getInstance().applyProfile(ServerProfile.builtInDefault());
+    }
+
+    private static GuiMessage line(String text) {
+        return new GuiMessage(0, Component.literal(text), null, null, null);
     }
 
     @Test
-    void kingdomTabHiddenByDefaultButAlwaysCollects() {
+    void profileTabsAreBuiltInOrderWithActivityChannelsHidden() {
         TabManager manager = TabManager.getInstance();
-        assertFalse(manager.isKingdomTabVisible());
-        assertTrue(manager.getAllTabs().contains(manager.getKingdomTab()));
-        assertFalse(manager.getFixedTabs().contains(manager.getKingdomTab()));
+        List<ChatTab> visible = manager.getVisibleTabs();
+        assertEquals(List.of("all", "global", "local"),
+                visible.stream().map(ChatTab::getId).toList());
+        assertFalse(manager.isChannelTabVisible("kingdom"));
+        assertNotNull(manager.getChannelTab("kingdom"));
     }
 
     @Test
-    void incomingKingdomMessageRevealsTabAndCountsUnread() {
+    void incomingActivityChannelMessageRevealsTabAndCountsUnread() {
         TabManager manager = TabManager.getInstance();
-        Component line = Component.literal("[K] [CrimsonHollow] [Lord of the Hollow] UnicornsBane > test");
-        GuiMessage hudLine = new GuiMessage(0, line, null, null, null);
+        Component text = Component.literal("[K] [CrimsonHollow] [Lord] UnicornsBane > test");
+        manager.onMessageReceived(text, line("[K] [CrimsonHollow] [Lord] UnicornsBane > test"));
 
-        manager.onMessageReceived(line, hudLine);
-
-        assertTrue(manager.isKingdomTabVisible());
-        assertEquals(1, manager.getKingdomTab().getMessages().size());
-        assertEquals(1, manager.getKingdomTab().getUnreadCount());
+        assertTrue(manager.isChannelTabVisible("kingdom"));
+        assertEquals(1, manager.getChannelTab("kingdom").getMessages().size());
+        assertEquals(1, manager.getChannelTab("kingdom").getUnreadCount());
     }
 
     @Test
-    void closingActiveKingdomTabFallsBackToAllTab() {
+    void closingActiveChannelTabFallsBackToAll() {
         TabManager manager = TabManager.getInstance();
-        manager.revealKingdomTab();
-        manager.setActiveTab(manager.getKingdomTab(), false);
-        assertEquals(manager.getKingdomTab(), manager.getActiveTab());
+        manager.revealChannelTab("kingdom");
+        manager.setActiveTab(manager.getChannelTab("kingdom"), false);
 
-        manager.closeKingdomTab();
+        manager.closeChannelTab("kingdom");
 
-        assertFalse(manager.isKingdomTabVisible());
+        assertFalse(manager.isChannelTabVisible("kingdom"));
         assertEquals("all", manager.getActiveTab().getId());
     }
 
     @Test
-    void typedKingdomJoinCommandRevealsTab() {
+    void closingHiddenChannelTabKeepsHistory() {
         TabManager manager = TabManager.getInstance();
-        manager.noteOutgoingCommand("/channel join kingdom");
-        assertTrue(manager.isKingdomTabVisible());
+        manager.onMessageReceived(Component.literal("[K] [C] [L] U > brb"), line("[K] [C] [L] U > brb"));
+        manager.closeChannelTab("kingdom");
+
+        assertFalse(manager.isChannelTabVisible("kingdom"));
+        assertEquals(1, manager.getChannelTab("kingdom").getMessages().size());
     }
 
     @Test
-    void typedKingdomJoinCommandIsCaseAndWhitespaceInsensitive() {
+    void typedJoinCommandRevealsActivityChannel() {
         TabManager manager = TabManager.getInstance();
         manager.noteOutgoingCommand("/Channel  Join   KINGDOM ");
-        assertTrue(manager.isKingdomTabVisible());
+        assertTrue(manager.isChannelTabVisible("kingdom"));
     }
 
     @Test
-    void otherCommandsDoNotRevealKingdomTab() {
+    void otherCommandsDoNotRevealChannels() {
         TabManager manager = TabManager.getInstance();
         manager.noteOutgoingCommand("/g");
         manager.noteOutgoingCommand("/gift someone");
         manager.noteOutgoingCommand("/channel join global");
-        manager.noteOutgoingCommand("hello no command");
-        assertFalse(manager.isKingdomTabVisible());
+        assertFalse(manager.isChannelTabVisible("kingdom"));
     }
 
     @Test
-    void closingHiddenKingdomTabKeepsHistory() {
+    void peekCollectsOnlyFlaggedChannelsAndStripsTag() {
         TabManager manager = TabManager.getInstance();
-        Component line = Component.literal("[K] [CrimsonHollow] [Lord of the Hollow] UnicornsBane > brb");
-        manager.onMessageReceived(line, new GuiMessage(0, line, null, null, null));
-        manager.closeKingdomTab();
+        manager.applyProfile(new ServerProfile("peeky", "", ">", List.of(
+                new ChannelDefinition("global", "Global", "[G]", "g", true, false),
+                new ChannelDefinition("trade", "Trade", "[T]", "", true, true))));
 
-        assertFalse(manager.isKingdomTabVisible());
-        assertEquals(1, manager.getKingdomTab().getMessages().size());
+        manager.onMessageReceived(Component.literal("[G] Player > hello world"),
+                line("[G] Player > hello world"));
+        manager.onMessageReceived(Component.literal("[T] Trader > selling dirt"),
+                line("[T] Trader > selling dirt"));
+
+        assertEquals(1, manager.getGlobalPeekMessages().size());
+        assertEquals("Trader > selling dirt", manager.getGlobalPeekMessages().get(0).getString());
+    }
+
+    @Test
+    void applyProfilePreservesMessagesForSurvivingIdsAndDropsRemoved() {
+        TabManager manager = TabManager.getInstance();
+        manager.onMessageReceived(Component.literal("[K] [C] [L] U > hi"), line("[K] [C] [L] U > hi"));
+        assertEquals(1, manager.getChannelTab("kingdom").getMessages().size());
+
+        manager.applyProfile(new ServerProfile("other", "", ">", List.of(
+                new ChannelDefinition("kingdom", "Kingdom", "[K]", "", false, false),
+                new ChannelDefinition("trade", "Trade", "[T]", "", true, false))));
+
+        assertEquals(1, manager.getChannelTab("kingdom").getMessages().size());
+        assertNotNull(manager.getChannelTab("trade"));
+        assertNull(manager.getChannelTab("global"));
     }
 }

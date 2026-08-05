@@ -114,7 +114,7 @@ public class TabBar extends AbstractWidget {
                     if (slot.tab().isDmTab()) {
                         tabManager.closeDmTab(slot.tab().getDmPlayerName());
                     } else {
-                        tabManager.closeKingdomTab();
+                        tabManager.closeChannelTab(slot.tab().getChannelId());
                     }
                 } else {
                     tabManager.setActiveTab(slot.tab());
@@ -131,26 +131,12 @@ public class TabBar extends AbstractWidget {
         List<TabSlot> slots = new ArrayList<>();
         int currentX = getX();
 
-        for (ChatTab tab : tabManager.getFixedTabs()) {
-            int tabWidth = textRenderer.width(tab.getDisplayName()) + TAB_PADDING * 2;
-            slots.add(new TabSlot(tab, currentX, tabWidth, false, -1));
-            currentX += tabWidth + TAB_MARGIN;
-        }
-
-        if (tabManager.isKingdomTabVisible()) {
-            ChatTab kingdomTab = tabManager.getKingdomTab();
-            int textWidth = textRenderer.width(kingdomTab.getDisplayName());
-            int tabWidth = textWidth + TAB_PADDING * 2 + CLOSE_BUTTON_WIDTH;
-            int closeX = currentX + tabWidth - CLOSE_BUTTON_WIDTH;
-            slots.add(new TabSlot(kingdomTab, currentX, tabWidth, true, closeX));
-            currentX += tabWidth + TAB_MARGIN;
-        }
-
-        for (ChatTab tab : tabManager.getDmTabs()) {
+        for (ChatTab tab : tabManager.getVisibleTabs()) {
             int textWidth = textRenderer.width(tab.getDisplayName());
-            int tabWidth = textWidth + TAB_PADDING * 2 + CLOSE_BUTTON_WIDTH;
-            int closeX = currentX + tabWidth - CLOSE_BUTTON_WIDTH;
-            slots.add(new TabSlot(tab, currentX, tabWidth, true, closeX));
+            int closeWidth = tab.isClosable() ? CLOSE_BUTTON_WIDTH : 0;
+            int tabWidth = textWidth + TAB_PADDING * 2 + closeWidth;
+            int closeX = tab.isClosable() ? currentX + tabWidth - CLOSE_BUTTON_WIDTH : -1;
+            slots.add(new TabSlot(tab, currentX, tabWidth, tab.isClosable(), closeX));
             currentX += tabWidth + TAB_MARGIN;
         }
 
