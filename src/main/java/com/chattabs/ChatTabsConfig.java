@@ -1,5 +1,6 @@
 package com.chattabs;
 
+import com.chattabs.config.ServerProfile;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
@@ -9,6 +10,8 @@ import java.io.Reader;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ChatTabsConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
@@ -25,6 +28,7 @@ public class ChatTabsConfig {
     private int chatOffsetX = 0;
     private int chatOffsetY = 0;
     private ChatMode chatMode = ChatMode.FILTERED;
+    private List<ServerProfile> profiles = new ArrayList<>();
 
     public static ChatTabsConfig getInstance() {
         if (instance == null) {
@@ -134,6 +138,31 @@ public class ChatTabsConfig {
         this.chatMode = chatMode == null ? ChatMode.FILTERED : chatMode;
     }
 
+    public List<ServerProfile> getProfiles() {
+        if (profiles == null) {
+            profiles = new ArrayList<>();
+        }
+        return profiles;
+    }
+
+    public ServerProfile profileForAddress(String address) {
+        for (ServerProfile profile : getProfiles()) {
+            if (profile != null && profile.matchesAddress(address)) {
+                return profile;
+            }
+        }
+        for (ServerProfile profile : getProfiles()) {
+            if (profile != null && profile.isDefaultProfile()) {
+                return profile;
+            }
+        }
+        return ServerProfile.builtInDefault();
+    }
+
+    public static void reload() {
+        instance = load();
+    }
+
     public void save() {
         try {
             Files.createDirectories(CONFIG_PATH.getParent());
@@ -150,7 +179,9 @@ public class ChatTabsConfig {
             try (Reader reader = Files.newBufferedReader(CONFIG_PATH)) {
                 ChatTabsConfig loaded = GSON.fromJson(reader, ChatTabsConfig.class);
                 if (loaded != null) {
-                    loaded.normalize();
+                    if (loaded.normalize()) {
+                        loaded.save();
+                    }
                     return loaded;
                 }
             } catch (IOException exception) {
@@ -164,14 +195,31 @@ public class ChatTabsConfig {
         return config;
     }
 
-    private void normalize() {
-        this.globalPeekLines = Math.max(1, globalPeekLines);
-        if (peekWidth != -1) {
-            this.peekWidth = Math.max(60, peekWidth);
+    boolean normalize() {
+        boolean changed = false;
+        int clampedLines = Math.max(1, globalPeekLines);
+        if (clampedLines != globalPeekLines) {
+            globalPeekLines = clampedLines;
+            changed = true;
+        }
+        if (peekWidth != -1 && peekWidth < 60) {
+            peekWidth = 60;
+            changed = true;
         }
         if (chatMode == null) {
-            this.chatMode = ChatMode.FILTERED;
+            chatMode = ChatMode.FILTERED;
+            changed = true;
         }
+        if (profiles == null) {
+            profiles = new ArrayList<>();
+        }
+        boolean hasDefault = profiles.stream()
+                .anyMatch(p -> p != null && p.isDefaultProfile());
+        if (!hasDefault) {
+            profiles.add(ServerProfile.builtInDefault());
+            changed = true;
+        }
+        return changed;
     }
 
     public enum ChatMode {
