@@ -103,9 +103,13 @@ jobs:
             file_parts: ["file"]
           }')
 
+        # Pass the JSON via file: curl -F parses inline values at ';' and
+        # would truncate changelogs containing semicolons.
+        printf '%s' "$JSON" > modrinth-payload.json
+
         RESP=$(curl -s -w "\n%{http_code}" -X POST "https://api.modrinth.com/v2/version" \
           -H "Authorization: $MODRINTH_TOKEN" \
-          -F "data=$JSON" \
+          -F "data=<modrinth-payload.json" \
           -F "file=@$FILE")
 
         HTTP_CODE=$(echo "$RESP" | tail -1)
