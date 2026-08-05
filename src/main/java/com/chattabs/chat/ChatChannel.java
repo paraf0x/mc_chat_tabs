@@ -3,6 +3,7 @@ package com.chattabs.chat;
 public enum ChatChannel {
     GLOBAL("g", "[G]"),
     LOCAL("l", "[L]"),
+    KINGDOM("channel join kingdom", "[K]"),
     DM("tell", "✉"),
     SYSTEM(null, null);  // System messages, notifications, etc.
 

@@ -131,7 +131,7 @@ public class ChatTabsMod implements ClientModInitializer {
                                         .executes(context -> {
                                             // Schedule screen open for next tick (can't open screen from command thread)
                                             Minecraft.getInstance().execute(() ->
-                                                    Minecraft.getInstance().setScreen(new PeekPositionScreen()));
+                                                    Minecraft.getInstance().gui.setScreen(new PeekPositionScreen()));
                                             return 1;
                                         }))
                                 .then(ClientCommands.literal("reset")
@@ -145,7 +145,7 @@ public class ChatTabsMod implements ClientModInitializer {
                         .then(ClientCommands.literal("layout")
                                 .executes(context -> {
                                     Minecraft.getInstance().execute(() ->
-                                            Minecraft.getInstance().setScreen(new PeekPositionScreen()));
+                                            Minecraft.getInstance().gui.setScreen(new PeekPositionScreen()));
                                     return 1;
                                 })
                                 .then(ClientCommands.literal("reset")

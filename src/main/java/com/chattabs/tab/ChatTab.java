@@ -104,7 +104,7 @@ public class ChatTab {
      * Only Local and DM tabs track unread - All/Global does not.
      */
     public boolean shouldTrackUnread() {
-        return id.equals("local") || isDmTab();
+        return id.equals("local") || id.equals("kingdom") || isDmTab();
     }
 
     public String getOutgoingPrefix() {
@@ -120,6 +120,10 @@ public class ChatTab {
 
     public static ChatTab createLocalTab() {
         return new ChatTab("local", "Local", ChatChannel.LOCAL);
+    }
+
+    public static ChatTab createKingdomTab() {
+        return new ChatTab("kingdom", "Kingdom", ChatChannel.KINGDOM);
     }
 
     public static ChatTab createDmTab(String playerName) {
