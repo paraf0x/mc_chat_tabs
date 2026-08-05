@@ -298,15 +298,17 @@ public class TabManager {
     }
 
     private void recordGlobalPeekMessage(ChatMessage parsed, Component message) {
-        // Interim: peek follows the "global" channel id; Task 6 switches this to the peek flag.
-        if (parsed.getKind() != MessageKind.CHANNEL || !"global".equalsIgnoreCase(parsed.getChannelId())) {
+        if (parsed.getKind() != MessageKind.CHANNEL || activeProfile == null) {
+            return;
+        }
+        ChannelDefinition definition = activeProfile.channelById(parsed.getChannelId());
+        if (definition == null || !definition.isPeek()) {
             return;
         }
 
-        // Strip "[PlayerName head]" placeholders from Chat Heads mod and build clean text
+        // Strip "[PlayerName head]" placeholders from Chat Heads mod and the channel tag
         String raw = CHAT_HEADS_PATTERN.matcher(message.getString()).replaceAll("").trim();
-        // Remove the [G] prefix for peek display
-        String display = raw.replaceFirst("^\\[G\\]\\s*", "");
+        String display = raw.replaceFirst("^" + Pattern.quote(definition.getTag()) + "\\s*", "");
 
         int maxMessages = Math.max(1, ChatTabsConfig.getInstance().getGlobalPeekLines());
         globalPeekMessages.add(Component.literal(display));

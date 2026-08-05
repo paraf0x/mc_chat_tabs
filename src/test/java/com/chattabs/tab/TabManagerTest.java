@@ -83,6 +83,22 @@ class TabManagerTest {
     }
 
     @Test
+    void peekCollectsOnlyFlaggedChannelsAndStripsTag() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(new ServerProfile("peeky", "", ">", List.of(
+                new ChannelDefinition("global", "Global", "[G]", "g", true, false),
+                new ChannelDefinition("trade", "Trade", "[T]", "", true, true))));
+
+        manager.onMessageReceived(Component.literal("[G] Player > hello world"),
+                line("[G] Player > hello world"));
+        manager.onMessageReceived(Component.literal("[T] Trader > selling dirt"),
+                line("[T] Trader > selling dirt"));
+
+        assertEquals(1, manager.getGlobalPeekMessages().size());
+        assertEquals("Trader > selling dirt", manager.getGlobalPeekMessages().get(0).getString());
+    }
+
+    @Test
     void applyProfilePreservesMessagesForSurvivingIdsAndDropsRemoved() {
         TabManager manager = TabManager.getInstance();
         manager.onMessageReceived(Component.literal("[K] [C] [L] U > hi"), line("[K] [C] [L] U > hi"));
