@@ -64,6 +64,22 @@ public class ServerProfile {
         return result;
     }
 
+    /** Live backing list for the settings draft; config order, unvalidated. */
+    public List<ChannelDefinition> channelsForEditing() {
+        if (channels == null) {
+            channels = new ArrayList<>();
+        }
+        return channels;
+    }
+
+    public void setSeparator(String separator) {
+        this.separator = separator;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
     public ChannelDefinition channelById(String id) {
         if (id == null) {
             return null;
