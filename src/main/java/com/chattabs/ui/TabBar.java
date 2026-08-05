@@ -91,8 +91,8 @@ public class TabBar extends AbstractWidget {
             context.text(textRenderer, unreadText, unreadX + 2, getY() + 3, COLOR_TEXT, false);
         }
 
-        // Close button for DM tabs
-        if (slot.dmTab()) {
+        // Close button for closable tabs (DM and kingdom)
+        if (slot.closable()) {
             int closeX = slot.closeX();
             boolean closeHovered = isMouseOverArea(mouseX, mouseY, closeX, getY(), CLOSE_BUTTON_WIDTH, TAB_HEIGHT);
             context.text(textRenderer, "x", closeX + 2, getY() + 3, closeHovered ? COLOR_TEXT : COLOR_TEXT_DIM, false);
@@ -110,8 +110,12 @@ public class TabBar extends AbstractWidget {
         TabManager tabManager = TabManager.getInstance();
         for (TabSlot slot : buildTabSlots(tabManager, textRenderer)) {
             if (isMouseOverArea((int) mouseX, (int) mouseY, slot.x(), getY(), slot.width(), TAB_HEIGHT)) {
-                if (slot.dmTab() && mouseX >= slot.closeX() && mouseX < slot.closeX() + CLOSE_BUTTON_WIDTH) {
-                    tabManager.closeDmTab(slot.tab().getDmPlayerName());
+                if (slot.closable() && mouseX >= slot.closeX() && mouseX < slot.closeX() + CLOSE_BUTTON_WIDTH) {
+                    if (slot.tab().isDmTab()) {
+                        tabManager.closeDmTab(slot.tab().getDmPlayerName());
+                    } else {
+                        tabManager.closeKingdomTab();
+                    }
                 } else {
                     tabManager.setActiveTab(slot.tab());
                 }
@@ -130,6 +134,15 @@ public class TabBar extends AbstractWidget {
         for (ChatTab tab : tabManager.getFixedTabs()) {
             int tabWidth = textRenderer.width(tab.getDisplayName()) + TAB_PADDING * 2;
             slots.add(new TabSlot(tab, currentX, tabWidth, false, -1));
+            currentX += tabWidth + TAB_MARGIN;
+        }
+
+        if (tabManager.isKingdomTabVisible()) {
+            ChatTab kingdomTab = tabManager.getKingdomTab();
+            int textWidth = textRenderer.width(kingdomTab.getDisplayName());
+            int tabWidth = textWidth + TAB_PADDING * 2 + CLOSE_BUTTON_WIDTH;
+            int closeX = currentX + tabWidth - CLOSE_BUTTON_WIDTH;
+            slots.add(new TabSlot(kingdomTab, currentX, tabWidth, true, closeX));
             currentX += tabWidth + TAB_MARGIN;
         }
 
@@ -153,6 +166,6 @@ public class TabBar extends AbstractWidget {
         // Accessibility narration for screen readers
     }
 
-    private record TabSlot(ChatTab tab, int x, int width, boolean dmTab, int closeX) {
+    private record TabSlot(ChatTab tab, int x, int width, boolean closable, int closeX) {
     }
 }
