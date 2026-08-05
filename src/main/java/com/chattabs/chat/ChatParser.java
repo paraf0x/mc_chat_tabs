@@ -11,6 +11,7 @@ public class ChatParser {
     // Format: [G] Rank PlayerName > message  or  [L] Rank PlayerName > message
     private static final Pattern GLOBAL_PATTERN = Pattern.compile("^\\[G\\]\\s+(.+?)\\s*>\\s*(.*)$");
     private static final Pattern LOCAL_PATTERN = Pattern.compile("^\\[L\\]\\s+(.+?)\\s*>\\s*(.*)$");
+    private static final Pattern KINGDOM_PATTERN = Pattern.compile("^\\[K\\]\\s+(.+?)\\s*>\\s*(.*)$");
 
     // DM patterns for this server format - flexible to handle various arrow characters
     // Outgoing: ✉ you → PlayerName > message  (or with different arrows like ->, →, ➔, etc.)
@@ -33,7 +34,7 @@ public class ChatParser {
 
     private static String getOwnPlayerName() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player != null) {
+        if (client != null && client.player != null) {
             return client.player.getName().getString();
         }
         return null;
@@ -84,6 +85,19 @@ public class ChatParser {
         matcher = LOCAL_PATTERN.matcher(text);
         if (matcher.find()) {
             return new ChatMessage(message, ChatChannel.LOCAL, matcher.group(1).trim(), matcher.group(2).trim());
+        }
+
+        // Kingdom chat [K]
+        matcher = KINGDOM_PATTERN.matcher(text);
+        if (matcher.find()) {
+            String sender = matcher.group(1).trim();
+            String content = matcher.group(2).trim();
+            ChatMessage msg = new ChatMessage(message, ChatChannel.KINGDOM, sender, content);
+            String ownName = getOwnPlayerName();
+            if (ownName != null && content.toLowerCase().contains(ownName.toLowerCase())) {
+                msg.setMention(true);
+            }
+            return msg;
         }
 
         // Fallback: if message contains DM indicator, treat as DM (extract player name heuristically)

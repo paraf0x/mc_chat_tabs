@@ -107,6 +107,7 @@ public class TabManager {
         String command = switch (targetChannel) {
             case GLOBAL -> "g";
             case LOCAL -> "l";
+            case KINGDOM -> "channel join kingdom";
             case DM -> null;
             case SYSTEM -> null;
         };
