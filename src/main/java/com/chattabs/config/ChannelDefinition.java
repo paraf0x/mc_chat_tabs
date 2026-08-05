@@ -7,18 +7,27 @@ public class ChannelDefinition {
     private String joinCommand = "";
     private boolean alwaysVisible = true;
     private boolean peek = false;
+    private boolean sound = true;
+    private boolean badge = true;
 
     public ChannelDefinition() {
     }
 
     public ChannelDefinition(String id, String displayName, String tag, String joinCommand,
                              boolean alwaysVisible, boolean peek) {
+        this(id, displayName, tag, joinCommand, alwaysVisible, peek, true, true);
+    }
+
+    public ChannelDefinition(String id, String displayName, String tag, String joinCommand,
+                             boolean alwaysVisible, boolean peek, boolean sound, boolean badge) {
         this.id = id;
         this.displayName = displayName;
         this.tag = tag;
         this.joinCommand = joinCommand;
         this.alwaysVisible = alwaysVisible;
         this.peek = peek;
+        this.sound = sound;
+        this.badge = badge;
     }
 
     public String getId() {
@@ -43,6 +52,14 @@ public class ChannelDefinition {
 
     public boolean isPeek() {
         return peek;
+    }
+
+    public boolean isSound() {
+        return sound;
+    }
+
+    public boolean isBadge() {
+        return badge;
     }
 
     public boolean isValid() {

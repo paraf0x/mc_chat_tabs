@@ -14,15 +14,20 @@ public class ChatTab {
     private final String channelId;     // Set for channel tabs, null for all/DM tabs
     private final String dmPlayerName;  // Only set for DM tabs
     private final boolean closable;
+    private final boolean soundEnabled;
+    private final boolean badgeEnabled;
     private final List<GuiMessage> messages;
     private int unreadCount;
 
-    private ChatTab(String id, String displayName, String channelId, String dmPlayerName, boolean closable) {
+    private ChatTab(String id, String displayName, String channelId, String dmPlayerName,
+                    boolean closable, boolean soundEnabled, boolean badgeEnabled) {
         this.id = id;
         this.displayName = displayName;
         this.channelId = channelId;
         this.dmPlayerName = dmPlayerName;
         this.closable = closable;
+        this.soundEnabled = soundEnabled;
+        this.badgeEnabled = badgeEnabled;
         this.messages = new ArrayList<>();
         this.unreadCount = 0;
     }
@@ -57,6 +62,14 @@ public class ChatTab {
 
     public boolean isClosable() {
         return closable;
+    }
+
+    public boolean isSoundEnabled() {
+        return soundEnabled;
+    }
+
+    public boolean isBadgeEnabled() {
+        return badgeEnabled;
     }
 
     public List<GuiMessage> getMessages() {
@@ -106,22 +119,24 @@ public class ChatTab {
 
     /**
      * Returns true if this tab should track unread message counts.
-     * Every tab except All does.
+     * Every tab except All does, unless its channel disabled the badge.
      */
     public boolean shouldTrackUnread() {
-        return !isAllTab();
+        return !isAllTab() && badgeEnabled;
     }
 
     public static ChatTab createAllTab() {
-        return new ChatTab("all", "All", null, null, false);
+        return new ChatTab("all", "All", null, null, false, true, true);
     }
 
     public static ChatTab createChannelTab(ChannelDefinition definition) {
         return new ChatTab(definition.getId(), definition.getDisplayName(),
-                definition.getId(), null, !definition.isAlwaysVisible());
+                definition.getId(), null, !definition.isAlwaysVisible(),
+                definition.isSound(), definition.isBadge());
     }
 
     public static ChatTab createDmTab(String playerName) {
-        return new ChatTab("dm_" + playerName.toLowerCase(), playerName, null, playerName, true);
+        return new ChatTab("dm_" + playerName.toLowerCase(), playerName, null, playerName,
+                true, true, true);
     }
 }
