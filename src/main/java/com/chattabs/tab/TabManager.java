@@ -21,6 +21,8 @@ public class TabManager {
 
     private final List<ChatTab> fixedTabs;
     private final Map<String, ChatTab> dmTabs;
+    private final ChatTab kingdomTab;
+    private boolean kingdomTabVisible = false;
     private ChatTab activeTab;
     private final List<TabChangeListener> listeners;
     private final List<Component> globalPeekMessages;
@@ -41,6 +43,7 @@ public class TabManager {
 
         fixedTabs.add(ChatTab.createAllTab());
         fixedTabs.add(ChatTab.createLocalTab());
+        kingdomTab = ChatTab.createKingdomTab();
 
         activeTab = fixedTabs.get(0);
     }
@@ -52,6 +55,10 @@ public class TabManager {
         return instance;
     }
 
+    static void resetForTesting() {
+        instance = null;
+    }
+
     public List<ChatTab> getFixedTabs() {
         return Collections.unmodifiableList(fixedTabs);
     }
@@ -60,8 +67,28 @@ public class TabManager {
         return new ArrayList<>(dmTabs.values());
     }
 
+    public ChatTab getKingdomTab() {
+        return kingdomTab;
+    }
+
+    public boolean isKingdomTabVisible() {
+        return kingdomTabVisible;
+    }
+
+    public void revealKingdomTab() {
+        kingdomTabVisible = true;
+    }
+
+    public void closeKingdomTab() {
+        kingdomTabVisible = false;
+        if (activeTab == kingdomTab) {
+            setActiveTab(fixedTabs.get(0), true);
+        }
+    }
+
     public List<ChatTab> getAllTabs() {
         List<ChatTab> all = new ArrayList<>(fixedTabs);
+        all.add(kingdomTab);
         all.addAll(dmTabs.values());
         return all;
     }
@@ -75,7 +102,7 @@ public class TabManager {
     }
 
     public void setActiveTab(ChatTab tab, boolean sendCommand) {
-        if (tab != null && (fixedTabs.contains(tab) || dmTabs.containsValue(tab))) {
+        if (tab != null && (fixedTabs.contains(tab) || tab == kingdomTab || dmTabs.containsValue(tab))) {
             ChatTab oldTab = activeTab;
             activeTab = tab;
             activeTab.clearUnread();
@@ -91,7 +118,7 @@ public class TabManager {
 
     private void sendContextSwitchCommand(ChatTab tab) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return;
+        if (client == null || client.player == null) return;
 
         ChatChannel targetChannel;
         if ("all".equals(tab.getId())) {
@@ -172,6 +199,10 @@ public class TabManager {
 
         if (parsed.isDM() && parsed.getSenderName() != null) {
             getOrCreateDmTab(parsed.getSenderName());
+        }
+
+        if (parsed.getChannel() == ChatChannel.KINGDOM) {
+            revealKingdomTab();
         }
 
         recordGlobalPeekMessage(parsed, message);
@@ -268,7 +299,7 @@ public class TabManager {
 
     private void playNotificationSound(ChatMessage parsed) {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null) return;
+        if (client == null || client.player == null) return;
 
         if (parsed.isMention()) {
             client.player.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
@@ -371,7 +402,7 @@ public class TabManager {
 
     private void refreshChatDisplay() {
         Minecraft client = Minecraft.getInstance();
-        if (client.gui == null) return;
+        if (client == null || client.gui == null) return;
 
         ChatComponent chatHud = client.gui.hud.getChat();
         if (chatHud instanceof ChatHudAccessor accessor) {
