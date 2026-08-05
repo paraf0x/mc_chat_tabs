@@ -4,6 +4,7 @@ import com.chattabs.config.ServerProfile;
 import com.chattabs.tab.TabManager;
 import com.chattabs.ui.GlobalPeekOverlay;
 import com.chattabs.ui.PeekPositionScreen;
+import com.chattabs.ui.settings.ChatTabsSettingsScreen;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -152,6 +153,13 @@ public class ChatTabsMod implements ClientModInitializer {
                                             context.getSource().sendFeedback(Component.literal("ChatTabs peek position reset to auto."));
                                             return 1;
                                         })))
+                        .then(ClientCommands.literal("settings")
+                                .executes(context -> {
+                                    Minecraft.getInstance().execute(() ->
+                                            Minecraft.getInstance().gui.setScreen(
+                                                    new ChatTabsSettingsScreen(null)));
+                                    return 1;
+                                }))
                         .then(ClientCommands.literal("profile")
                                 .executes(context -> {
                                     ServerProfile profile = TabManager.getInstance().getActiveProfile();
