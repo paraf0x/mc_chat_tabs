@@ -1,23 +1,21 @@
 package com.chattabs.chat;
 
+import com.chattabs.config.ChannelDefinition;
+import com.chattabs.config.ServerProfile;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class ChatParser {
-    // Pattern for channel indicators: [G], [L]
-    // Format: [G] Rank PlayerName > message  or  [L] Rank PlayerName > message
-    private static final Pattern GLOBAL_PATTERN = Pattern.compile("^\\[G\\]\\s+(.+?)\\s*>\\s*(.*)$");
-    private static final Pattern LOCAL_PATTERN = Pattern.compile("^\\[L\\]\\s+(.+?)\\s*>\\s*(.*)$");
-    private static final Pattern KINGDOM_PATTERN = Pattern.compile("^\\[K\\]\\s+(.+?)\\s*>\\s*(.*)$");
-
     // DM patterns for this server format - flexible to handle various arrow characters
     // Outgoing: ✉ you → PlayerName > message  (or with different arrows like ->, →, ➔, etc.)
     // Incoming: ✉ PlayerName → YourName > message (server uses actual player name, not "you")
     // Arrow chars: → ➔ -> ► ▶ (Unicode and ASCII variants)
-    // Note: removed ^ anchor to handle color codes/prefixes before the envelope
+    // Note: no ^ anchor to handle color codes/prefixes before the envelope
     private static final String ARROW_CHARS = "[→➔►▶]|->|>";
 
     // Chat Heads mod inserts "[PlayerName head]" before player names - strip it
@@ -32,6 +30,29 @@ public class ChatParser {
     // Fallback: check if message contains DM indicator anywhere (for unusual formats)
     private static final Pattern DM_INDICATOR_PATTERN = Pattern.compile("[✉].*(?:" + ARROW_CHARS + ").*>", Pattern.CASE_INSENSITIVE);
 
+    private record ChannelPattern(String channelId, Pattern pattern) {
+    }
+
+    private static volatile List<ChannelPattern> channelPatterns = buildPatterns(ServerProfile.builtInDefault());
+
+    public static void setActiveProfile(ServerProfile profile) {
+        channelPatterns = buildPatterns(profile == null ? ServerProfile.builtInDefault() : profile);
+    }
+
+    private static List<ChannelPattern> buildPatterns(ServerProfile profile) {
+        List<ChannelPattern> patterns = new ArrayList<>();
+        for (ChannelDefinition channel : profile.validChannels()) {
+            patterns.add(new ChannelPattern(channel.getId(),
+                    buildChannelPattern(channel.getTag(), profile.getSeparator())));
+        }
+        return patterns;
+    }
+
+    static Pattern buildChannelPattern(String tag, String separator) {
+        return Pattern.compile("^" + Pattern.quote(tag) + "\\s+(.+?)\\s*"
+                + Pattern.quote(separator) + "\\s*(.*)$");
+    }
+
     private static String getOwnPlayerName() {
         Minecraft client = Minecraft.getInstance();
         if (client != null && client.player != null) {
@@ -44,7 +65,6 @@ public class ChatParser {
         // Strip Chat Heads mod placeholders like "[PlayerName head]"
         String text = CHAT_HEADS_PATTERN.matcher(message.getString()).replaceAll("").trim();
 
-        // Try to match channel patterns
         Matcher matcher;
 
         // Check DMs FIRST (before channel patterns) - more specific patterns
@@ -62,42 +82,25 @@ public class ChatParser {
             // The "other player" is the one that isn't us
             String otherPlayer = isOutgoing ? rightSide : leftSide;
 
-            ChatMessage msg = new ChatMessage(message, ChatChannel.DM, otherPlayer, content);
+            ChatMessage msg = new ChatMessage(message, MessageKind.DM, null, otherPlayer, content);
             msg.setOutgoing(isOutgoing);
             return msg;
         }
 
-        // Global chat [G]
-        matcher = GLOBAL_PATTERN.matcher(text);
-        if (matcher.find()) {
-            String sender = matcher.group(1).trim();
-            String content = matcher.group(2).trim();
-            ChatMessage msg = new ChatMessage(message, ChatChannel.GLOBAL, sender, content);
-            // Check if our name is mentioned in the message content
-            String ownName = getOwnPlayerName();
-            if (ownName != null && content.toLowerCase().contains(ownName.toLowerCase())) {
-                msg.setMention(true);
+        // Channel patterns from the active profile, in config order
+        for (ChannelPattern channelPattern : channelPatterns) {
+            matcher = channelPattern.pattern().matcher(text);
+            if (matcher.find()) {
+                String sender = matcher.group(1).trim();
+                String content = matcher.group(2).trim();
+                ChatMessage msg = new ChatMessage(message, MessageKind.CHANNEL,
+                        channelPattern.channelId(), sender, content);
+                String ownName = getOwnPlayerName();
+                if (ownName != null && content.toLowerCase().contains(ownName.toLowerCase())) {
+                    msg.setMention(true);
+                }
+                return msg;
             }
-            return msg;
-        }
-
-        // Local chat [L]
-        matcher = LOCAL_PATTERN.matcher(text);
-        if (matcher.find()) {
-            return new ChatMessage(message, ChatChannel.LOCAL, matcher.group(1).trim(), matcher.group(2).trim());
-        }
-
-        // Kingdom chat [K]
-        matcher = KINGDOM_PATTERN.matcher(text);
-        if (matcher.find()) {
-            String sender = matcher.group(1).trim();
-            String content = matcher.group(2).trim();
-            ChatMessage msg = new ChatMessage(message, ChatChannel.KINGDOM, sender, content);
-            String ownName = getOwnPlayerName();
-            if (ownName != null && content.toLowerCase().contains(ownName.toLowerCase())) {
-                msg.setMention(true);
-            }
-            return msg;
         }
 
         // Fallback: if message contains DM indicator, treat as DM (extract player name heuristically)
@@ -117,23 +120,19 @@ public class ChatParser {
                     Pattern recipientPattern = Pattern.compile("(?:" + ARROW_CHARS + ")\\s*(.+?)\\s*>");
                     Matcher recipientMatcher = recipientPattern.matcher(text);
                     if (recipientMatcher.find()) {
-                        ChatMessage msg = new ChatMessage(message, ChatChannel.DM, recipientMatcher.group(1).trim(), text);
+                        ChatMessage msg = new ChatMessage(message, MessageKind.DM, null,
+                                recipientMatcher.group(1).trim(), text);
                         msg.setOutgoing(true);
                         return msg;
                     }
                 } else {
                     // Incoming - left side is the sender
-                    return new ChatMessage(message, ChatChannel.DM, leftSide, text);
+                    return new ChatMessage(message, MessageKind.DM, null, leftSide, text);
                 }
             }
         }
 
         // Default to SYSTEM for non-chat messages (notifications, etc.)
-        return new ChatMessage(message, ChatChannel.SYSTEM, null, text);
-    }
-
-    public static boolean isChannelMessage(Component message, ChatChannel channel) {
-        ChatMessage parsed = parse(message);
-        return parsed.getChannel() == channel;
+        return new ChatMessage(message, MessageKind.SYSTEM, null, null, text);
     }
 }

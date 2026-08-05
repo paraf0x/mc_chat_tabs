@@ -1,28 +1,56 @@
 package com.chattabs.tab;
 
-import com.chattabs.chat.ChatChannel;
 import com.chattabs.chat.ChatMessage;
+import com.chattabs.chat.MessageKind;
+import com.chattabs.config.ChannelDefinition;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ChatTabTest {
 
-    @Test
-    void kingdomTabShowsOnlyKingdomMessages() {
-        ChatTab tab = ChatTab.createKingdomTab();
-        assertEquals("kingdom", tab.getId());
-        assertEquals("Kingdom", tab.getDisplayName());
-        assertFalse(tab.isDmTab());
+    private static final ChannelDefinition KINGDOM =
+            new ChannelDefinition("kingdom", "Kingdom", "[K]", "channel join kingdom", false, false);
 
-        ChatMessage kingdomMsg = new ChatMessage(null, ChatChannel.KINGDOM, "UnicornsBane", "test");
-        ChatMessage globalMsg = new ChatMessage(null, ChatChannel.GLOBAL, "labsami", "hi");
+    @Test
+    void channelTabShowsOnlyItsChannel() {
+        ChatTab tab = ChatTab.createChannelTab(KINGDOM);
+        assertEquals("kingdom", tab.getId());
+        assertEquals("kingdom", tab.getChannelId());
+        assertTrue(tab.isChannelTab());
+        assertTrue(tab.isClosable());
+
+        ChatMessage kingdomMsg = new ChatMessage(null, MessageKind.CHANNEL, "kingdom", "UnicornsBane", "test");
+        ChatMessage globalMsg = new ChatMessage(null, MessageKind.CHANNEL, "global", "labsami", "hi");
+        ChatMessage system = new ChatMessage(null, MessageKind.SYSTEM, null, null, "note");
         assertTrue(tab.shouldShowMessage(kingdomMsg));
         assertFalse(tab.shouldShowMessage(globalMsg));
+        assertFalse(tab.shouldShowMessage(system));
     }
 
     @Test
-    void kingdomTabTracksUnread() {
-        assertTrue(ChatTab.createKingdomTab().shouldTrackUnread());
+    void alwaysVisibleChannelTabIsNotClosable() {
+        ChatTab tab = ChatTab.createChannelTab(
+                new ChannelDefinition("global", "Global", "[G]", "g", true, true));
+        assertFalse(tab.isClosable());
+    }
+
+    @Test
+    void allTabShowsEverythingAndNeverCountsUnread() {
+        ChatTab all = ChatTab.createAllTab();
+        assertTrue(all.isAllTab());
+        assertFalse(all.isClosable());
+        assertTrue(all.shouldShowMessage(new ChatMessage(null, MessageKind.SYSTEM, null, null, "x")));
+        assertFalse(all.shouldTrackUnread());
+    }
+
+    @Test
+    void dmTabMatchesSenderAndTracksUnread() {
+        ChatTab dm = ChatTab.createDmTab("SomePlayer");
+        assertTrue(dm.isDmTab());
+        assertTrue(dm.isClosable());
+        assertTrue(dm.shouldTrackUnread());
+        ChatMessage msg = new ChatMessage(null, MessageKind.DM, null, "someplayer", "hi");
+        assertTrue(dm.shouldShowMessage(msg));
     }
 }
