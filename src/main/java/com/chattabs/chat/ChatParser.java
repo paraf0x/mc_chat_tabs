@@ -48,7 +48,7 @@ public class ChatParser {
         return patterns;
     }
 
-    static Pattern buildChannelPattern(String tag, String separator) {
+    public static Pattern buildChannelPattern(String tag, String separator) {
         return Pattern.compile("^" + Pattern.quote(tag) + "\\s+(.+?)\\s*"
                 + Pattern.quote(separator) + "\\s*(.*)$");
     }
