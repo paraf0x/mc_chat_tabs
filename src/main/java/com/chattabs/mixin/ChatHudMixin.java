@@ -70,7 +70,7 @@ public abstract class ChatHudMixin implements ChatHudAccessor {
         TabManager tabManager = TabManager.getInstance();
 
         GuiMessage hudLine = new GuiMessage(
-            Minecraft.getInstance().gui.getGuiTicks(),
+            Minecraft.getInstance().gui.hud.getGuiTicks(),
             message,
             signature,
             source,

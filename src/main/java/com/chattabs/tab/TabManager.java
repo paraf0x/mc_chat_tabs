@@ -372,7 +372,7 @@ public class TabManager {
         Minecraft client = Minecraft.getInstance();
         if (client.gui == null) return;
 
-        ChatComponent chatHud = client.gui.getChat();
+        ChatComponent chatHud = client.gui.hud.getChat();
         if (chatHud instanceof ChatHudAccessor accessor) {
             ChatTab tabToDisplay = activeTab;
             if (isSingleWindowMode() && !fixedTabs.isEmpty()) {
