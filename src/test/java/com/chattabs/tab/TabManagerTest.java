@@ -99,6 +99,43 @@ class TabManagerTest {
     }
 
     @Test
+    void cyclingMovesForwardAndWrapsOverVisibleTabs() {
+        TabManager manager = TabManager.getInstance();
+        // visible: all, global, local (kingdom hidden until activity)
+        assertEquals("all", manager.getActiveTab().getId());
+
+        manager.cycleActiveTab(1);
+        assertEquals("global", manager.getActiveTab().getId());
+        manager.cycleActiveTab(1);
+        assertEquals("local", manager.getActiveTab().getId());
+        manager.cycleActiveTab(1);
+        assertEquals("all", manager.getActiveTab().getId());
+    }
+
+    @Test
+    void cyclingBackwardsWrapsToLastVisibleTab() {
+        TabManager manager = TabManager.getInstance();
+        manager.cycleActiveTab(-1);
+        assertEquals("local", manager.getActiveTab().getId());
+        manager.cycleActiveTab(-1);
+        assertEquals("global", manager.getActiveTab().getId());
+    }
+
+    @Test
+    void cyclingIncludesRevealedChannelsOnly() {
+        TabManager manager = TabManager.getInstance();
+        manager.revealChannelTab("kingdom");
+
+        manager.cycleActiveTab(-1);
+        assertEquals("kingdom", manager.getActiveTab().getId());
+
+        manager.closeChannelTab("kingdom");
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+        manager.cycleActiveTab(1);
+        assertEquals("all", manager.getActiveTab().getId());
+    }
+
+    @Test
     void mutedChannelNeitherPingsNorBadgesWhenBothFlagsOff() {
         TabManager manager = TabManager.getInstance();
         manager.applyProfile(new ServerProfile("quiet", "", ">", List.of(

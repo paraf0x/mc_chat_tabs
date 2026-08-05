@@ -237,13 +237,24 @@ public class TabManager {
         }
     }
 
-    public void setActiveTabById(String tabId) {
-        for (ChatTab tab : getAllTabs()) {
-            if (tab.getId().equals(tabId)) {
-                setActiveTab(tab);
-                return;
-            }
+    /**
+     * Switches to the next ({@code +1}) or previous ({@code -1}) visible tab,
+     * wrapping around at both ends.
+     */
+    public void cycleActiveTab(int direction) {
+        List<ChatTab> visible = getVisibleTabs();
+        if (visible.size() < 2) {
+            return;
         }
+
+        int currentIndex = visible.indexOf(activeTab);
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        }
+
+        int step = direction < 0 ? -1 : 1;
+        int nextIndex = Math.floorMod(currentIndex + step, visible.size());
+        setActiveTab(visible.get(nextIndex), true);
     }
 
     public ChatTab getOrCreateDmTab(String playerName) {
