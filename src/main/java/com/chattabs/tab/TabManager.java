@@ -37,6 +37,7 @@ public class TabManager {
     private String forcedVisibleMessage;
     private long forcedVisibleMessageAt;
     private long lastPeekMessageAt;
+    private int soundRequests;
 
     private TabManager() {
         this.allTab = ChatTab.createAllTab();
@@ -57,6 +58,14 @@ public class TabManager {
 
     static void resetForTesting() {
         instance = null;
+    }
+
+    int soundRequestsForTesting() {
+        return soundRequests;
+    }
+
+    void resetSoundRequestsForTesting() {
+        soundRequests = 0;
     }
 
     public void applyProfile(ServerProfile profile) {
@@ -228,13 +237,24 @@ public class TabManager {
         }
     }
 
-    public void setActiveTabById(String tabId) {
-        for (ChatTab tab : getAllTabs()) {
-            if (tab.getId().equals(tabId)) {
-                setActiveTab(tab);
-                return;
-            }
+    /**
+     * Switches to the next ({@code +1}) or previous ({@code -1}) visible tab,
+     * wrapping around at both ends.
+     */
+    public void cycleActiveTab(int direction) {
+        List<ChatTab> visible = getVisibleTabs();
+        if (visible.size() < 2) {
+            return;
         }
+
+        int currentIndex = visible.indexOf(activeTab);
+        if (currentIndex < 0) {
+            currentIndex = 0;
+        }
+
+        int step = direction < 0 ? -1 : 1;
+        int nextIndex = Math.floorMod(currentIndex + step, visible.size());
+        setActiveTab(visible.get(nextIndex), true);
     }
 
     public ChatTab getOrCreateDmTab(String playerName) {
@@ -270,24 +290,32 @@ public class TabManager {
 
         boolean playedSound = false;
         for (ChatTab tab : getAllTabs()) {
-            if (tab.shouldShowMessage(parsed)) {
-                tab.addMessage(hudLine);
+            if (!tab.shouldShowMessage(parsed)) {
+                continue;
+            }
 
-                if (tab == activeTab) {
-                    touchActiveTabActivity();
-                }
+            tab.addMessage(hudLine);
 
-                if (tab != activeTab && tab.shouldTrackUnread() && !isSingleWindowMode()) {
-                    tab.incrementUnread();
-                    if (!playedSound) {
-                        playNotificationSound(parsed);
-                        playedSound = true;
-                    }
-                }
+            if (tab == activeTab) {
+                touchActiveTabActivity();
+                continue;
+            }
+
+            if (isSingleWindowMode()) {
+                continue;
+            }
+
+            if (tab.shouldTrackUnread()) {
+                tab.incrementUnread();
+            }
+
+            if (!playedSound && !tab.isAllTab() && tab.isSoundEnabled()) {
+                playNotificationSound(parsed);
+                playedSound = true;
             }
         }
 
-        if (!playedSound && parsed.isMention()) {
+        if (!playedSound && parsed.isMention() && soundAllowedFor(parsed)) {
             playNotificationSound(parsed);
         }
 
@@ -360,7 +388,18 @@ public class TabManager {
                 || text.contains("not accepting messages");
     }
 
+    /** A channel with sound disabled stays silent, mentions included. */
+    private boolean soundAllowedFor(ChatMessage parsed) {
+        if (parsed.getKind() != MessageKind.CHANNEL) {
+            return true;
+        }
+        ChatTab tab = getChannelTab(parsed.getChannelId());
+        return tab == null || tab.isSoundEnabled();
+    }
+
     private void playNotificationSound(ChatMessage parsed) {
+        soundRequests++;
+
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.player == null) {
             return;

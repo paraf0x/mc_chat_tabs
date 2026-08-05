@@ -55,6 +55,14 @@ public abstract class ChatScreenMixin extends Screen {
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void onKeyPressed(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
         int key = input.key();
+
+        if (key == GLFW.GLFW_KEY_TAB && input.hasControlDown()) {
+            TabManager.getInstance().cycleActiveTab(input.hasShiftDown() ? -1 : 1);
+            ChatFocusHelper.refocusImmediate();
+            cir.setReturnValue(true);
+            return;
+        }
+
         if (key == GLFW.GLFW_KEY_UP) {
             moveInHistory(-1);
             ChatFocusHelper.refocusImmediate();

@@ -14,5 +14,5 @@ run/
 .DS_Store
 
 # Created by unit-test runs (fabric-loader-junit)
-config/
-logs/
+/config/
+/logs/

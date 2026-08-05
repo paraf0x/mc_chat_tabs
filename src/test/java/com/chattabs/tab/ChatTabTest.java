@@ -45,6 +45,39 @@ class ChatTabTest {
     }
 
     @Test
+    void channelFlagsDefaultToEnabled() {
+        ChatTab tab = ChatTab.createChannelTab(
+                new ChannelDefinition("trade", "Trade", "[T]", "", true, false));
+        assertTrue(tab.isSoundEnabled());
+        assertTrue(tab.isBadgeEnabled());
+        assertTrue(tab.shouldTrackUnread());
+    }
+
+    @Test
+    void badgeFlagControlsUnreadTracking() {
+        ChatTab silentBadge = ChatTab.createChannelTab(
+                new ChannelDefinition("a", "A", "[A]", "", true, false, false, true));
+        assertFalse(silentBadge.isSoundEnabled());
+        assertTrue(silentBadge.shouldTrackUnread());
+
+        ChatTab noBadge = ChatTab.createChannelTab(
+                new ChannelDefinition("b", "B", "[B]", "", true, false, true, false));
+        assertTrue(noBadge.isSoundEnabled());
+        assertFalse(noBadge.shouldTrackUnread());
+    }
+
+    @Test
+    void dmAndAllTabsKeepDefaultNotificationBehavior() {
+        ChatTab dm = ChatTab.createDmTab("SomePlayer");
+        assertTrue(dm.isSoundEnabled());
+        assertTrue(dm.shouldTrackUnread());
+
+        ChatTab all = ChatTab.createAllTab();
+        assertTrue(all.isSoundEnabled());
+        assertFalse(all.shouldTrackUnread());
+    }
+
+    @Test
     void dmTabMatchesSenderAndTracksUnread() {
         ChatTab dm = ChatTab.createDmTab("SomePlayer");
         assertTrue(dm.isDmTab());

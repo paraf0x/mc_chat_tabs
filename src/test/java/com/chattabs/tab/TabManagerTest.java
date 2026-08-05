@@ -99,6 +99,97 @@ class TabManagerTest {
     }
 
     @Test
+    void cyclingMovesForwardAndWrapsOverVisibleTabs() {
+        TabManager manager = TabManager.getInstance();
+        // visible: all, global, local (kingdom hidden until activity)
+        assertEquals("all", manager.getActiveTab().getId());
+
+        manager.cycleActiveTab(1);
+        assertEquals("global", manager.getActiveTab().getId());
+        manager.cycleActiveTab(1);
+        assertEquals("local", manager.getActiveTab().getId());
+        manager.cycleActiveTab(1);
+        assertEquals("all", manager.getActiveTab().getId());
+    }
+
+    @Test
+    void cyclingBackwardsWrapsToLastVisibleTab() {
+        TabManager manager = TabManager.getInstance();
+        manager.cycleActiveTab(-1);
+        assertEquals("local", manager.getActiveTab().getId());
+        manager.cycleActiveTab(-1);
+        assertEquals("global", manager.getActiveTab().getId());
+    }
+
+    @Test
+    void cyclingIncludesRevealedChannelsOnly() {
+        TabManager manager = TabManager.getInstance();
+        manager.revealChannelTab("kingdom");
+
+        manager.cycleActiveTab(-1);
+        assertEquals("kingdom", manager.getActiveTab().getId());
+
+        manager.closeChannelTab("kingdom");
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+        manager.cycleActiveTab(1);
+        assertEquals("all", manager.getActiveTab().getId());
+    }
+
+    @Test
+    void mutedChannelNeitherPingsNorBadgesWhenBothFlagsOff() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(new ServerProfile("quiet", "", ">", List.of(
+                new ChannelDefinition("global", "Global", "[G]", "g", true, false),
+                new ChannelDefinition("spam", "Spam", "[S]", "", true, false, false, false))));
+        manager.resetSoundRequestsForTesting();
+
+        manager.onMessageReceived(Component.literal("[S] Bot > buy gold"), line("[S] Bot > buy gold"));
+
+        assertEquals(0, manager.getChannelTab("spam").getUnreadCount());
+        assertEquals(0, manager.soundRequestsForTesting());
+        assertEquals(1, manager.getChannelTab("spam").getMessages().size());
+    }
+
+    @Test
+    void badgeWithoutSoundCountsSilently() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(new ServerProfile("silent", "", ">", List.of(
+                new ChannelDefinition("global", "Global", "[G]", "g", true, false),
+                new ChannelDefinition("quiet", "Quiet", "[Q]", "", true, false, false, true))));
+        manager.resetSoundRequestsForTesting();
+
+        manager.onMessageReceived(Component.literal("[Q] Player > hi"), line("[Q] Player > hi"));
+
+        assertEquals(1, manager.getChannelTab("quiet").getUnreadCount());
+        assertEquals(0, manager.soundRequestsForTesting());
+    }
+
+    @Test
+    void soundWithoutBadgePingsWithoutCounting() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(new ServerProfile("loud", "", ">", List.of(
+                new ChannelDefinition("global", "Global", "[G]", "g", true, false),
+                new ChannelDefinition("loud", "Loud", "[L2]", "", true, false, true, false))));
+        manager.resetSoundRequestsForTesting();
+
+        manager.onMessageReceived(Component.literal("[L2] Player > hi"), line("[L2] Player > hi"));
+
+        assertEquals(0, manager.getChannelTab("loud").getUnreadCount());
+        assertEquals(1, manager.soundRequestsForTesting());
+    }
+
+    @Test
+    void defaultChannelsStillPingOncePerMessage() {
+        TabManager manager = TabManager.getInstance();
+        manager.resetSoundRequestsForTesting();
+
+        manager.onMessageReceived(Component.literal("[K] [C] [L] U > hi"), line("[K] [C] [L] U > hi"));
+
+        assertEquals(1, manager.soundRequestsForTesting());
+        assertEquals(1, manager.getChannelTab("kingdom").getUnreadCount());
+    }
+
+    @Test
     void applyProfilePreservesMessagesForSurvivingIdsAndDropsRemoved() {
         TabManager manager = TabManager.getInstance();
         manager.onMessageReceived(Component.literal("[K] [C] [L] U > hi"), line("[K] [C] [L] U > hi"));
