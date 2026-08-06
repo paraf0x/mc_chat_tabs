@@ -195,7 +195,8 @@ public class ChatTabsConfig {
         return config;
     }
 
-    boolean normalize() {
+    /** Brings the config into a valid state; returns true when something changed. */
+    public boolean normalize() {
         boolean changed = false;
         int clampedLines = Math.max(1, globalPeekLines);
         if (clampedLines != globalPeekLines) {

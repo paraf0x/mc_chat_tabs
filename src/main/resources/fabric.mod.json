@@ -13,7 +13,8 @@
   "icon": "assets/chattabs/icon.png",
   "environment": "client",
   "entrypoints": {
-    "client": ["com.chattabs.ChatTabsMod"]
+    "client": ["com.chattabs.ChatTabsMod"],
+    "modmenu": ["com.chattabs.compat.ChatTabsModMenu"]
   },
   "mixins": ["chattabs.mixins.json"],
   "accessWidener": "chattabs.accesswidener",
@@ -22,5 +23,8 @@
     "minecraft": "~26.2",
     "java": ">=25",
     "fabric-api": "*"
+  },
+  "suggests": {
+    "modmenu": "*"
   }
 }

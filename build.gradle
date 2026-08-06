@@ -13,6 +13,10 @@ base {
 
 repositories {
     mavenCentral()
+    maven {
+        name = "Terraformers"
+        url = "https://maven.terraformersmc.com/releases"
+    }
 }
 
 loom {
@@ -24,6 +28,9 @@ dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+
+    // Optional at runtime: only used by the ModMenu entrypoint class.
+    compileOnly "com.terraformersmc:modmenu:20.0.1"
 
     testImplementation platform("org.junit:junit-bom:5.11.4")
     testImplementation "org.junit.jupiter:junit-jupiter"
