@@ -6,7 +6,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 public class PeekPositionScreen extends Screen {
     private static final int MIN_WIDTH = 60;
@@ -179,7 +179,7 @@ public class PeekPositionScreen extends Screen {
 
     @Override
     public boolean keyPressed(KeyEvent input) {
-        if (input.key() == GLFW.GLFW_KEY_R) {
+        if (input.key() == InputConstants.KEY_R) {
             ChatTabsConfig config = ChatTabsConfig.getInstance();
             config.resetPeekPosition();
             config.resetChatOffset();

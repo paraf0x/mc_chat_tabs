@@ -8,7 +8,7 @@ import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.Component;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
@@ -56,20 +56,20 @@ public abstract class ChatScreenMixin extends Screen {
     private void onKeyPressed(KeyEvent input, CallbackInfoReturnable<Boolean> cir) {
         int key = input.key();
 
-        if (key == GLFW.GLFW_KEY_TAB && input.hasControlDown()) {
+        if (key == InputConstants.KEY_TAB && input.hasControlDown()) {
             TabManager.getInstance().cycleActiveTab(input.hasShiftDown() ? -1 : 1);
             ChatFocusHelper.refocusImmediate();
             cir.setReturnValue(true);
             return;
         }
 
-        if (key == GLFW.GLFW_KEY_UP) {
+        if (key == InputConstants.KEY_UP) {
             moveInHistory(-1);
             ChatFocusHelper.refocusImmediate();
             cir.setReturnValue(true);
             return;
         }
-        if (key == GLFW.GLFW_KEY_DOWN) {
+        if (key == InputConstants.KEY_DOWN) {
             moveInHistory(1);
             ChatFocusHelper.refocusImmediate();
             cir.setReturnValue(true);
