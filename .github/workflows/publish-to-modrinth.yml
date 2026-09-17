@@ -53,11 +53,19 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        ASSET_COUNT=$(jq '.release.assets | length' < "$GITHUB_EVENT_PATH")
-        if [ "$ASSET_COUNT" -gt 0 ]; then
-          ASSET_URL=$(jq -r '.release.assets[0].url' < "$GITHUB_EVENT_PATH")
-          curl -sS -L -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/octet-stream" "$ASSET_URL" -o release-asset.jar
+        # assets[0] is whatever GitHub happens to list first - a -sources.jar
+        # sitting there would be published as the mod. Pick the mod jar, and
+        # keep its own name so the Modrinth download is not "release-asset.jar".
+        ASSET=$(jq -r '([.release.assets[]
+                          | select(.name | endswith(".jar"))
+                          | select(.name | test("-(sources|dev)\\.jar$") | not)][0])
+                       // empty | "\(.name)\t\(.url)"' < "$GITHUB_EVENT_PATH")
+        if [ -n "$ASSET" ]; then
+          ASSET_NAME="${ASSET%%$'\t'*}"
+          ASSET_URL="${ASSET##*$'\t'}"
+          curl -sS -L -H "Authorization: token $GITHUB_TOKEN" -H "Accept: application/octet-stream" "$ASSET_URL" -o "$ASSET_NAME"
           echo "has_asset=true" >> $GITHUB_OUTPUT
+          echo "name=$ASSET_NAME" >> $GITHUB_OUTPUT
         else
           echo "has_asset=false" >> $GITHUB_OUTPUT
         fi
@@ -66,7 +74,7 @@ jobs:
       id: prepare
       run: |
         if [ "${{ steps.asset.outputs.has_asset }}" = "true" ]; then
-          echo "file=release-asset.jar" >> $GITHUB_OUTPUT
+          echo "file=${{ steps.asset.outputs.name }}" >> $GITHUB_OUTPUT
         else
           echo "file=${{ steps.find.outputs.artifact }}" >> $GITHUB_OUTPUT
         fi
