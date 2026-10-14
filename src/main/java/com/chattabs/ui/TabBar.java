@@ -2,6 +2,7 @@ package com.chattabs.ui;
 
 import com.chattabs.tab.ChatTab;
 import com.chattabs.tab.TabManager;
+import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -101,7 +102,7 @@ public class TabBar extends AbstractWidget {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != 0) return false;
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return false;
 
         double mouseX = click.x();
         double mouseY = click.y();

@@ -112,7 +112,7 @@ public class PeekPositionScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent click, boolean doubled) {
-        if (click.button() != 0) return super.mouseClicked(click, doubled);
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseClicked(click, doubled);
         double mx = click.x(), my = click.y();
 
         // Peek resize handle
@@ -143,7 +143,7 @@ public class PeekPositionScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent click) {
-        if (click.button() == 0 && dragTarget != DragTarget.NONE) {
+        if (click.button() == InputConstants.MOUSE_BUTTON_LEFT && dragTarget != DragTarget.NONE) {
             dragTarget = DragTarget.NONE;
             return true;
         }
@@ -152,7 +152,7 @@ public class PeekPositionScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent click, double deltaX, double deltaY) {
-        if (click.button() != 0) return super.mouseDragged(click, deltaX, deltaY);
+        if (click.button() != InputConstants.MOUSE_BUTTON_LEFT) return super.mouseDragged(click, deltaX, deltaY);
 
         switch (dragTarget) {
             case PEEK_MOVE -> {
