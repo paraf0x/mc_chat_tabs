@@ -203,4 +203,29 @@ class TabManagerTest {
         assertNotNull(manager.getChannelTab("trade"));
         assertNull(manager.getChannelTab("global"));
     }
+
+    @Test
+    void joinCommandIsSentOnlyWhenServerKnowsItsRoot() {
+        com.mojang.brigadier.CommandDispatcher<Object> dispatcher = new com.mojang.brigadier.CommandDispatcher<>();
+        dispatcher.register(com.mojang.brigadier.builder.LiteralArgumentBuilder.literal("channel"));
+        assertTrue(TabManager.serverKnowsCommand(dispatcher, "channel join kingdom"));
+        assertFalse(TabManager.serverKnowsCommand(dispatcher, "l"));
+        assertFalse(TabManager.serverKnowsCommand(dispatcher, "  "));
+    }
+
+    @Test
+    void missingCommandTreeDoesNotBlockJoinCommand() {
+        assertTrue(TabManager.serverKnowsCommand(null, "l"));
+    }
+
+    @Test
+    void vanillaWhisperOpensDmTab() {
+        TabManager manager = TabManager.getInstance();
+        Component text = Component.translatable("commands.message.display.incoming",
+                Component.literal("Steve"), Component.literal("hi"));
+        manager.onMessageReceived(text, new GuiMessage(0, text, null, null, null));
+        assertEquals(List.of("steve"), manager.getDmTabs().stream()
+                .map(tab -> tab.getDmPlayerName().toLowerCase()).toList());
+        assertEquals(1, manager.getDmTabs().get(0).getMessages().size());
+    }
 }

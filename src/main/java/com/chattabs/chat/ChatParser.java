@@ -4,6 +4,7 @@ import com.chattabs.config.ChannelDefinition;
 import com.chattabs.config.ServerProfile;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.contents.TranslatableContents;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,9 +62,42 @@ public class ChatParser {
         return null;
     }
 
+    /**
+     * Vanilla /tell, /msg and /w (servers without a chat plugin): matched on the translation key,
+     * so the client language does not matter. Args are the other player and the message.
+     */
+    private static ChatMessage parseVanillaWhisper(Component message) {
+        if (!(message.getContents() instanceof TranslatableContents translatable)) {
+            return null;
+        }
+        boolean incoming = translatable.getKey().equals("commands.message.display.incoming");
+        boolean outgoing = translatable.getKey().equals("commands.message.display.outgoing");
+        Object[] args = translatable.getArgs();
+        if ((!incoming && !outgoing) || args.length < 2) {
+            return null;
+        }
+        String otherPlayer = argText(args[0]);
+        if (otherPlayer.isBlank()) {
+            return null;
+        }
+        ChatMessage msg = new ChatMessage(message, MessageKind.DM, null, otherPlayer, argText(args[1]));
+        msg.setOutgoing(outgoing);
+        return msg;
+    }
+
+    private static String argText(Object arg) {
+        String text = arg instanceof Component component ? component.getString() : String.valueOf(arg);
+        return CHAT_HEADS_PATTERN.matcher(text).replaceAll("").trim();
+    }
+
     public static ChatMessage parse(Component message) {
         // Strip Chat Heads mod placeholders like "[PlayerName head]"
         String text = CHAT_HEADS_PATTERN.matcher(message.getString()).replaceAll("").trim();
+
+        ChatMessage vanillaWhisper = parseVanillaWhisper(message);
+        if (vanillaWhisper != null) {
+            return vanillaWhisper;
+        }
 
         Matcher matcher;
 

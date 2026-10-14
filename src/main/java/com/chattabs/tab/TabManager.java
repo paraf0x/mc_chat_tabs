@@ -7,6 +7,7 @@ import com.chattabs.chat.ChatParser;
 import com.chattabs.chat.MessageKind;
 import com.chattabs.config.ChannelDefinition;
 import com.chattabs.config.ServerProfile;
+import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.ChatComponent;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
@@ -192,8 +193,22 @@ public class TabManager {
             return;
         }
 
+        // A server without this channel (e.g. a plain local one) would only answer "Unknown command".
+        if (!serverKnowsCommand(client.player.connection.getCommands(), definition.getJoinCommand())) {
+            return;
+        }
+
         client.player.connection.sendCommand(definition.getJoinCommand());
         lastServerChannelId = targetChannelId;
+    }
+
+    /** True when the command tree the server sent has the command's first word; no tree → don't block. */
+    static boolean serverKnowsCommand(CommandDispatcher<?> dispatcher, String command) {
+        String root = command == null ? "" : command.trim().split("\\s+", 2)[0];
+        if (root.isEmpty()) {
+            return false;
+        }
+        return dispatcher == null || dispatcher.getRoot().getChild(root) != null;
     }
 
     public String getOutgoingMessagePrefix() {

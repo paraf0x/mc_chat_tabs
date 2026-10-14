@@ -69,4 +69,33 @@ class ChatParserTest {
         assertEquals(MessageKind.DM, parsed.getKind());
         assertEquals("SomePlayer", parsed.getSenderName());
     }
+
+    @Test
+    void vanillaIncomingWhisperIsDmFromSender() {
+        Component line = Component.translatable("commands.message.display.incoming",
+                Component.literal("Steve"), Component.literal("hi there"));
+        ChatMessage parsed = ChatParser.parse(line);
+        assertEquals(MessageKind.DM, parsed.getKind());
+        assertEquals("Steve", parsed.getSenderName());
+        assertEquals("hi there", parsed.getContent());
+        assertFalse(parsed.isOutgoing());
+    }
+
+    @Test
+    void vanillaOutgoingWhisperIsDmToRecipient() {
+        Component line = Component.translatable("commands.message.display.outgoing",
+                Component.literal("Alex"), Component.literal("on my way"));
+        ChatMessage parsed = ChatParser.parse(line);
+        assertEquals(MessageKind.DM, parsed.getKind());
+        assertEquals("Alex", parsed.getSenderName());
+        assertEquals("on my way", parsed.getContent());
+        assertTrue(parsed.isOutgoing());
+    }
+
+    @Test
+    void vanillaPublicChatStaysSystem() {
+        Component line = Component.translatable("chat.type.text",
+                Component.literal("Steve"), Component.literal("hello"));
+        assertEquals(MessageKind.SYSTEM, ChatParser.parse(line).getKind());
+    }
 }
