@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "id": "chattabs-gametest",
+  "version": "1.0.0",
+  "name": "Chat Tabs Gametests",
+  "environment": "client",
+  "entrypoints": {
+    "fabric-client-gametest": ["com.chattabs.gametest.ChatTabsGameTest"]
+  },
+  "depends": {
+    "chattabs": "*",
+    "fabric-client-gametest-api-v1": "*"
+  }
+}

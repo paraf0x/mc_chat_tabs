@@ -228,4 +228,168 @@ class TabManagerTest {
                 .map(tab -> tab.getDmPlayerName().toLowerCase()).toList());
         assertEquals(1, manager.getDmTabs().get(0).getMessages().size());
     }
+
+    @Test
+    void dmCommandOnlyAppliesWhileDmTabIsActive() {
+        TabManager manager = TabManager.getInstance();
+        ChatTab dm = manager.getOrCreateDmTab("UnicornBeef");
+        manager.setActiveTab(dm, false);
+        assertEquals("tell UnicornBeef hi", manager.getOutgoingDmCommand("hi"));
+
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+        assertNull(manager.getOutgoingDmCommand("hi"));
+    }
+
+    /** Local is a quiet channel (no sound, no badge); [G] lines have no channel and land in All only. */
+    private static ServerProfile mentionProfile(boolean mentionAlert) {
+        ServerProfile profile = new ServerProfile("m", "", ">", List.of(
+                new ChannelDefinition("local", "Local", "[L]", "l", true, false, false, false),
+                new ChannelDefinition("kingdom", "Kingdom", "[K]", "", true, false)));
+        profile.setMentionNames(List.of("UB"));
+        profile.setMentionAlert(mentionAlert);
+        return profile;
+    }
+
+    private static void receive(TabManager manager, String text) {
+        manager.onMessageReceived(Component.literal(text), line(text));
+    }
+
+    @Test
+    void mentionInQuietChannelBadgesAndPlings() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(mentionProfile(true));
+        manager.resetSoundRequestsForTesting();
+
+        receive(manager, "[L] Bob > just chatting");
+        assertEquals(0, manager.getChannelTab("local").getUnreadCount());
+        assertEquals(0, manager.soundRequestsForTesting());
+
+        receive(manager, "[L] Bob > ub, you there?");
+        assertEquals(1, manager.getChannelTab("local").getUnreadCount());
+        assertEquals(0, manager.getAllTabs().getFirst().getUnreadCount(), "badge only where the line has its tab");
+        assertEquals(1, manager.soundRequestsForTesting());
+    }
+
+    @Test
+    void mentionWithoutChannelBadgesAll() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(mentionProfile(true));
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+        manager.resetSoundRequestsForTesting();
+
+        receive(manager, "[G] [Town] Bob > hi there");
+        receive(manager, "UB joined the game");
+        assertEquals(0, manager.getAllTabs().getFirst().getUnreadCount());
+        assertEquals(0, manager.soundRequestsForTesting());
+
+        receive(manager, "[G] [Town] Bob > ub trade?");
+        assertEquals(1, manager.getAllTabs().getFirst().getUnreadCount());
+        assertEquals(1, manager.soundRequestsForTesting());
+
+        manager.setActiveTab(manager.getAllTabs().getFirst(), false);
+        assertEquals(0, manager.getAllTabs().getFirst().getUnreadCount(), "opening All clears it");
+    }
+
+    @Test
+    void mentionAlertOffKeepsQuietLinesSilent() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(mentionProfile(false));
+        manager.setActiveTab(manager.getChannelTab("kingdom"), false);
+        manager.resetSoundRequestsForTesting();
+
+        receive(manager, "[L] Bob > ub, you there?");
+        receive(manager, "[G] Bob > ub trade?");
+        assertEquals(0, manager.getChannelTab("local").getUnreadCount());
+        assertEquals(0, manager.getAllTabs().getFirst().getUnreadCount());
+        assertEquals(0, manager.soundRequestsForTesting());
+    }
+
+    @Test
+    void mentionInActiveTabPlingsWithoutBadge() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(mentionProfile(true));
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+        manager.resetSoundRequestsForTesting();
+
+        receive(manager, "[L] Bob > ub look");
+        assertEquals(0, manager.getChannelTab("local").getUnreadCount());
+        assertEquals(1, manager.soundRequestsForTesting());
+    }
+
+    @Test
+    void mentionInLoudChannelPlingsOnce() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(mentionProfile(true));
+        manager.resetSoundRequestsForTesting();
+
+        receive(manager, "[K] Bob > ub over here");
+        assertEquals(1, manager.getChannelTab("kingdom").getUnreadCount());
+        assertEquals(1, manager.soundRequestsForTesting());
+    }
+
+    private static ServerProfile systemProfile(boolean systemTab) {
+        ServerProfile profile = new ServerProfile("s", "", ">", List.of(
+                new ChannelDefinition("local", "Local", "[L]", "l", true, false)));
+        profile.setSystemTab(systemTab);
+        return profile;
+    }
+
+    @Test
+    void systemTabIsHiddenUnlessEnabled() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(systemProfile(false));
+        assertEquals(List.of("all", "local"), manager.getVisibleTabs().stream().map(ChatTab::getId).toList());
+
+        manager.applyProfile(systemProfile(true));
+        manager.getOrCreateDmTab("Bob");
+        assertEquals(List.of("all", "local", "system", "dm_bob"),
+                manager.getVisibleTabs().stream().map(ChatTab::getId).toList());
+    }
+
+    @Test
+    void systemTabCollectsServerLinesWhichAlsoStayInAll() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(systemProfile(true));
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+        manager.resetSoundRequestsForTesting();
+
+        receive(manager, "Bob joined the game");
+        receive(manager, "[L] Bob > local chat");
+        receive(manager, "[G] [Town] Bob > global chat");
+        receive(manager, "[Shop] You sold 64 dirt");
+
+        ChatTab system = manager.getVisibleTabs().stream().filter(ChatTab::isSystemTab).findFirst().orElseThrow();
+        assertEquals(List.of("[Shop] You sold 64 dirt", "Bob joined the game"),
+                system.getMessages().stream().map(m -> m.content().getString()).toList());
+        assertEquals(4, manager.getAllTabs().getFirst().getMessages().size());
+        assertEquals(0, system.getUnreadCount());
+        assertEquals(0, manager.soundRequestsForTesting());
+    }
+
+    @Test
+    void disablingSystemTabWhileActiveFallsBackToAll() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(systemProfile(true));
+        ChatTab system = manager.getVisibleTabs().stream().filter(ChatTab::isSystemTab).findFirst().orElseThrow();
+        manager.setActiveTab(system, false);
+        assertEquals("system", manager.getActiveTab().getId());
+
+        manager.applyProfile(systemProfile(false));
+        assertEquals("all", manager.getActiveTab().getId());
+        manager.setActiveTab(system, false);
+        assertEquals("all", manager.getActiveTab().getId(), "a hidden system tab cannot be selected");
+    }
+
+    @Test
+    void clearingChatAlsoClearsADisabledSystemTab() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(systemProfile(true));
+        receive(manager, "Bob joined the game");
+        manager.applyProfile(systemProfile(false));
+        manager.clearAllMessages();
+
+        manager.applyProfile(systemProfile(true));
+        ChatTab system = manager.getVisibleTabs().stream().filter(ChatTab::isSystemTab).findFirst().orElseThrow();
+        assertTrue(system.getMessages().isEmpty());
+    }
 }

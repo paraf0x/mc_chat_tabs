@@ -5,6 +5,8 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 class SettingsDraftTest {
@@ -72,5 +74,30 @@ class SettingsDraftTest {
         draft.setSeparator(0, "»");
         draft.commit(config);
         assertEquals("»", config.getProfiles().get(0).getSeparator());
+    }
+
+    @Test
+    void mentionSettingsSurviveDraftAndCommit() {
+        SettingsDraft draft = SettingsDraft.from(config);
+        draft.setMentionAlert(0, true);
+        draft.setMentionNames(0, "Unicorn, UB");
+        int copy = draft.addProfileForAddress("play.example.net", 0);
+        assertTrue(draft.profile(copy).isMentionAlert());
+        assertEquals(List.of("Unicorn", "UB"), draft.profile(copy).getMentionNames());
+
+        draft.commit(config);
+        ServerProfile saved = config.getProfiles().getFirst();
+        assertTrue(saved.isMentionAlert());
+        assertEquals(List.of("Unicorn", "UB"), saved.getMentionNames());
+    }
+
+    @Test
+    void systemTabSettingSurvivesDraftAndCommit() {
+        SettingsDraft draft = SettingsDraft.from(config);
+        draft.setSystemTab(0, true);
+        int copy = draft.addProfileForAddress("play.example.net", 0);
+        assertTrue(draft.profile(copy).isSystemTab());
+        draft.commit(config);
+        assertTrue(config.getProfiles().getFirst().isSystemTab());
     }
 }

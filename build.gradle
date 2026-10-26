@@ -66,3 +66,26 @@ jar {
         rename { "${it}_${project.base.archivesName.get()}" }
     }
 }
+
+// Client gametests: ./gradlew runClientGameTest (opens a Minecraft window). Never part of `build`.
+fabricApi {
+    configureTests {
+        createSourceSet = true
+        modId = "chattabs-gametest"
+        enableGameTests = false
+        enableClientGameTests = true
+        eula = true
+        clearRunDirectory = true
+        username = "Tester"
+    }
+}
+
+dependencies {
+    gametestImplementation fabricApi.module("fabric-client-gametest-api-v1", project.fabric_version)
+}
+
+tasks.configureEach { task ->
+    if (task.name == "runClientGameTest") {
+        task.onlyIf("run explicitly") { gradle.startParameter.taskNames.any { it.contains("runClientGameTest") } }
+    }
+}

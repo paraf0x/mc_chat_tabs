@@ -52,6 +52,10 @@ public class ChatTab {
         return "all".equals(id);
     }
 
+    public boolean isSystemTab() {
+        return "system".equals(id);
+    }
+
     public boolean isChannelTab() {
         return channelId != null;
     }
@@ -106,6 +110,11 @@ public class ChatTab {
             return true;
         }
 
+        // Server lines: no sender, so not chat from a player
+        if (isSystemTab()) {
+            return parsedMessage.getKind() == MessageKind.SYSTEM && parsedMessage.getSenderName() == null;
+        }
+
         // DM tab for specific player - show both incoming and outgoing messages
         if (isDmTab()) {
             return parsedMessage.isDM()
@@ -127,6 +136,11 @@ public class ChatTab {
 
     public static ChatTab createAllTab() {
         return new ChatTab("all", "All", null, null, false, true, true);
+    }
+
+    /** Server messages; no badge, no sound. They stay in All as well. */
+    public static ChatTab createSystemTab() {
+        return new ChatTab("system", "System", null, null, false, false, false);
     }
 
     public static ChatTab createChannelTab(ChannelDefinition definition) {

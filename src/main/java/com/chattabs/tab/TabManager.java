@@ -24,6 +24,7 @@ public class TabManager {
 
     private ServerProfile activeProfile;
     private final ChatTab allTab;
+    private final ChatTab systemTab = ChatTab.createSystemTab();
     private final Map<String, ChatTab> channelTabs = new LinkedHashMap<>(); // config order, key = channel id lowercase
     private final Set<String> revealedChannels = new HashSet<>();
     private final Map<String, ChatTab> dmTabs;
@@ -85,9 +86,15 @@ public class TabManager {
         }
         activeProfile = effective;
         lastServerChannelId = firstChannelId();
-        if (activeTab == null || (activeTab.isChannelTab()
-                && !channelTabs.containsKey(activeTab.getChannelId().toLowerCase(Locale.ROOT)))) {
+        if (activeTab == null || (activeTab == systemTab && !effective.isSystemTab())) {
             activeTab = allTab;
+        } else if (activeTab.isChannelTab()) {
+            // The old tab object is gone; stay on its replacement, or fall back to All.
+            ChatTab replacement = channelTabs.get(activeTab.getChannelId().toLowerCase(Locale.ROOT));
+            activeTab = replacement != null ? replacement : allTab;
+            if (replacement != null && replacement.isClosable()) {
+                revealedChannels.add(replacement.getId().toLowerCase(Locale.ROOT));
+            }
         }
         ChatParser.setActiveProfile(effective);
         refreshChatDisplay();
@@ -99,6 +106,10 @@ public class TabManager {
 
     private String firstChannelId() {
         return channelTabs.isEmpty() ? null : channelTabs.keySet().iterator().next();
+    }
+
+    private boolean isSystemTabEnabled() {
+        return activeProfile != null && activeProfile.isSystemTab();
     }
 
     public ChatTab getChannelTab(String id) {
@@ -138,6 +149,9 @@ public class TabManager {
                 visible.add(tab);
             }
         }
+        if (isSystemTabEnabled()) {
+            visible.add(systemTab);
+        }
         visible.addAll(dmTabs.values());
         return visible;
     }
@@ -146,6 +160,9 @@ public class TabManager {
         List<ChatTab> all = new ArrayList<>();
         all.add(allTab);
         all.addAll(channelTabs.values());
+        if (isSystemTabEnabled()) {
+            all.add(systemTab);
+        }
         all.addAll(dmTabs.values());
         return all;
     }
@@ -163,7 +180,8 @@ public class TabManager {
     }
 
     public void setActiveTab(ChatTab tab, boolean sendCommand) {
-        if (tab != null && (tab == allTab || channelTabs.containsValue(tab) || dmTabs.containsValue(tab))) {
+        if (tab != null && (tab == allTab || channelTabs.containsValue(tab) || dmTabs.containsValue(tab)
+                || (tab == systemTab && isSystemTabEnabled()))) {
             ChatTab oldTab = activeTab;
             activeTab = tab;
             activeTab.clearUnread();
@@ -211,9 +229,14 @@ public class TabManager {
         return dispatcher == null || dispatcher.getRoot().getChild(root) != null;
     }
 
-    public String getOutgoingMessagePrefix() {
+    /**
+     * The command (without "/") that sends a typed chat line as a DM, or null outside a DM tab.
+     * Applied at send time only, so chat history keeps the plain text and ↑ in another tab
+     * does not resend it as a DM.
+     */
+    public String getOutgoingDmCommand(String message) {
         if (activeTab.isDmTab() && activeTab.getDmPlayerName() != null) {
-            return "/tell " + activeTab.getDmPlayerName() + " ";
+            return "tell " + activeTab.getDmPlayerName() + " " + message;
         }
         return null;
     }
@@ -302,6 +325,9 @@ public class TabManager {
 
         recordGlobalPeekMessage(parsed, message);
         boolean mirroredDmFailure = mirrorLikelyDmFailure(message, hudLine, parsed);
+        boolean mentionAlert = parsed.isMention() && activeProfile != null && activeProfile.isMentionAlert();
+        // The badge goes where the line has its own tab; a line that only lands in All badges All.
+        boolean onlyInAll = parsed.getKind() == MessageKind.SYSTEM;
 
         boolean playedSound = false;
         for (ChatTab tab : getAllTabs()) {
@@ -320,7 +346,7 @@ public class TabManager {
                 continue;
             }
 
-            if (tab.shouldTrackUnread()) {
+            if (tab.shouldTrackUnread() || (mentionAlert && (tab.isAllTab() == onlyInAll))) {
                 tab.incrementUnread();
             }
 
@@ -330,7 +356,8 @@ public class TabManager {
             }
         }
 
-        if (!playedSound && parsed.isMention() && soundAllowedFor(parsed)) {
+        if (!playedSound && parsed.isMention()
+                && (mentionAlert || (parsed.getKind() != MessageKind.SYSTEM && soundAllowedFor(parsed)))) {
             playNotificationSound(parsed);
         }
 
@@ -535,6 +562,7 @@ public class TabManager {
         for (ChatTab tab : getAllTabs()) {
             tab.clearMessages();
         }
+        systemTab.clearMessages(); // also while switched off, so it never comes back stale
         globalPeekMessages.clear();
     }
 

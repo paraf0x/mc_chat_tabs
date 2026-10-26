@@ -86,4 +86,19 @@ class ChatTabTest {
         ChatMessage msg = new ChatMessage(null, MessageKind.DM, null, "someplayer", "hi");
         assertTrue(dm.shouldShowMessage(msg));
     }
+
+    @Test
+    void systemTabShowsOnlyLinesWithoutASender() {
+        ChatTab tab = ChatTab.createSystemTab();
+        assertEquals("system", tab.getId());
+        assertTrue(tab.isSystemTab());
+        assertFalse(tab.isClosable());
+        assertFalse(tab.shouldTrackUnread());
+        assertFalse(tab.isSoundEnabled());
+
+        assertTrue(tab.shouldShowMessage(new ChatMessage(null, MessageKind.SYSTEM, null, null, "Bob joined the game")));
+        assertFalse(tab.shouldShowMessage(new ChatMessage(null, MessageKind.SYSTEM, null, "Bob", "hi from [G]")));
+        assertFalse(tab.shouldShowMessage(new ChatMessage(null, MessageKind.CHANNEL, "local", "Bob", "hi")));
+        assertFalse(tab.shouldShowMessage(new ChatMessage(null, MessageKind.DM, null, "Bob", "psst")));
+    }
 }

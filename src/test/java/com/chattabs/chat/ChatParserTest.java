@@ -98,4 +98,45 @@ class ChatParserTest {
                 Component.literal("Steve"), Component.literal("hello"));
         assertEquals(MessageKind.SYSTEM, ChatParser.parse(line).getKind());
     }
+
+    @Test
+    void mentionUsesOwnNameAndProfileNames() {
+        ServerProfile profile = new ServerProfile("p", "", ">", List.of(
+                new ChannelDefinition("global", "Global", "[G]", "g", true, false)));
+        profile.setMentionNames(List.of("Unicorn", "UB"));
+        ChatParser.setActiveProfile(profile);
+        ChatParser.setOwnNameForTesting("UnicornBeef");
+        try {
+            assertTrue(ChatParser.parse(Component.literal("[G] Bob > hi unicornbeef")).isMention());
+            assertTrue(ChatParser.parse(Component.literal("[G] Bob > ub, trade?")).isMention());
+            assertTrue(ChatParser.parse(Component.literal("[G] Bob > Unicorn come here")).isMention());
+            assertFalse(ChatParser.parse(Component.literal("[G] Bob > at the pub")).isMention());
+            assertFalse(ChatParser.parse(Component.literal("[G] [Town] [Lord] UnicornBeef > ub here")).isMention(),
+                    "own messages never count as mentions");
+        } finally {
+            ChatParser.setOwnNameForTesting(null);
+        }
+    }
+
+    @Test
+    void mentionAlsoFoundInChatLinesWithoutChannel() {
+        ServerProfile profile = new ServerProfile("p", "", ">", List.of(
+                new ChannelDefinition("local", "Local", "[L]", "l", true, false)));
+        profile.setMentionNames(List.of("UB"));
+        ChatParser.setActiveProfile(profile);
+        ChatParser.setOwnNameForTesting("UnicornBeef");
+        try {
+            ChatMessage global = ChatParser.parse(Component.literal("[G] [Town] [Lord] Bob > ub trade?"));
+            assertEquals(MessageKind.SYSTEM, global.getKind());
+            assertTrue(global.isMention());
+            assertTrue(ChatParser.parse(Component.translatable("chat.type.text",
+                    Component.literal("Bob"), Component.literal("hey UnicornBeef"))).isMention());
+            assertFalse(ChatParser.parse(Component.literal("UnicornBeef joined the game")).isMention());
+            assertFalse(ChatParser.parse(Component.literal("[G] UnicornBeef > ub")).isMention());
+            assertFalse(ChatParser.parse(Component.translatable("chat.type.text",
+                    Component.literal("UnicornBeef"), Component.literal("ub"))).isMention());
+        } finally {
+            ChatParser.setOwnNameForTesting(null);
+        }
+    }
 }

@@ -85,7 +85,7 @@ public class TabBar extends AbstractWidget {
 
         // Unread indicator (only for non-active tabs)
         if (showUnreadIndicators && tab.getUnreadCount() > 0 && !isActive) {
-            String unreadText = tab.getUnreadCount() > 99 ? "99+" : String.valueOf(tab.getUnreadCount());
+            String unreadText = unreadText(tab);
             int unreadWidth = textRenderer.width(unreadText) + 4;
             int unreadX = x + TAB_PADDING + textWidth + 2;
             context.fill(unreadX, getY() + 2, unreadX + unreadWidth, getY() + 11, COLOR_UNREAD);
@@ -129,19 +129,35 @@ public class TabBar extends AbstractWidget {
     }
 
     private List<TabSlot> buildTabSlots(TabManager tabManager, Font textRenderer) {
+        return layout(tabManager, textRenderer, getX());
+    }
+
+    /**
+     * Tab positions left to right from {@code startX}. A tab is wide enough for its name, its
+     * unread badge (when shown) and its close button, so none of them overlap.
+     */
+    public static List<TabSlot> layout(TabManager tabManager, Font textRenderer, int startX) {
         List<TabSlot> slots = new ArrayList<>();
-        int currentX = getX();
+        int currentX = startX;
+        ChatTab activeTab = tabManager.getActiveTab();
+        boolean showUnread = !tabManager.isSingleWindowMode();
 
         for (ChatTab tab : tabManager.getVisibleTabs()) {
             int textWidth = textRenderer.width(tab.getDisplayName());
+            int badgeWidth = showUnread && tab != activeTab && tab.getUnreadCount() > 0
+                    ? 2 + textRenderer.width(unreadText(tab)) + 4 : 0;
             int closeWidth = tab.isClosable() ? CLOSE_BUTTON_WIDTH : 0;
-            int tabWidth = textWidth + TAB_PADDING * 2 + closeWidth;
+            int tabWidth = textWidth + badgeWidth + TAB_PADDING * 2 + closeWidth;
             int closeX = tab.isClosable() ? currentX + tabWidth - CLOSE_BUTTON_WIDTH : -1;
             slots.add(new TabSlot(tab, currentX, tabWidth, tab.isClosable(), closeX));
             currentX += tabWidth + TAB_MARGIN;
         }
 
         return slots;
+    }
+
+    private static String unreadText(ChatTab tab) {
+        return tab.getUnreadCount() > 99 ? "99+" : String.valueOf(tab.getUnreadCount());
     }
 
     private boolean isMouseOverArea(int mouseX, int mouseY, int x, int y, int width, int height) {
@@ -153,6 +169,6 @@ public class TabBar extends AbstractWidget {
         // Accessibility narration for screen readers
     }
 
-    private record TabSlot(ChatTab tab, int x, int width, boolean closable, int closeX) {
+    public record TabSlot(ChatTab tab, int x, int width, boolean closable, int closeX) {
     }
 }

@@ -7,6 +7,7 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,7 +15,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -81,23 +82,25 @@ public abstract class ChatScreenMixin extends Screen {
         ChatFocusHelper.refocusImmediate();
     }
 
-    @ModifyVariable(method = "handleChatInput", at = @At("HEAD"), argsOnly = true)
-    private String prefixDmMessage(String message) {
+    @Inject(method = "handleChatInput", at = @At("HEAD"))
+    private void noteOutgoingCommand(String message, boolean addToRecent, CallbackInfo ci) {
         if (message.startsWith("/")) {
             TabManager.getInstance().noteOutgoingCommand(message);
-            return message;
         }
-        if (message.trim().isEmpty()) {
-            return message;
-        }
+    }
 
+    // Turn the line into a DM here, after it went into chat history unprefixed.
+    @Redirect(method = "handleChatInput", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;sendChat(Ljava/lang/String;)V"))
+    private void sendChatOrDm(ClientPacketListener connection, String message) {
         TabManager tabManager = TabManager.getInstance();
         tabManager.noteOutgoingMessage();
 
-        String prefix = tabManager.getOutgoingMessagePrefix();
-        if (prefix != null) {
-            return prefix + message;
+        String dmCommand = tabManager.getOutgoingDmCommand(message);
+        if (dmCommand != null) {
+            connection.sendCommand(dmCommand);
+        } else {
+            connection.sendChat(message);
         }
-        return message;
     }
 }

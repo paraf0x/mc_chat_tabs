@@ -1,0 +1,52 @@
+name: Upload screenshots to Modrinth gallery
+
+# Run by hand after docs/screenshots/ changed. The images come from the client gametest
+# (./gradlew runClientGameTest writes showcase-*.png; see docs/screenshots/README.md).
+on:
+  workflow_dispatch: {}
+
+jobs:
+  gallery:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Replace gallery images
+      env:
+        MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        MODRINTH_PROJECT: ${{ secrets.MODRINTH_PROJECT }}
+      run: |
+        if [ -z "$MODRINTH_TOKEN" ]; then echo "MODRINTH_TOKEN not set" && exit 1; fi
+        if [ -z "$MODRINTH_PROJECT" ]; then echo "MODRINTH_PROJECT not set" && exit 1; fi
+        API="https://api.modrinth.com/v2/project/$MODRINTH_PROJECT"
+
+        # file|title|description|featured
+        IMAGES=(
+          "tabs.png|Chat tabs|Channel tabs with unread badges and a DM tab|true"
+          "all.png|All tab|Everything in one place, as always|false"
+          "system.png|System tab|Server messages in their own tab, still in All too|false"
+          "dm.png|DM tab|Typing in a DM tab sends a whisper|false"
+          "settings.png|Settings|Profiles, channels, mention alert and nicknames|false"
+        )
+
+        curl -sSf -H "Authorization: $MODRINTH_TOKEN" "$API" -o project.json
+
+        for entry in "${IMAGES[@]}"; do
+          IFS='|' read -r FILE TITLE DESC FEATURED <<< "$entry"
+
+          # Drop an earlier upload with the same title so reruns replace instead of piling up.
+          jq -r --arg t "$TITLE" '.gallery[] | select(.title == $t) | .url' project.json | while read -r OLD; do
+            curl -sSf -X DELETE -H "Authorization: $MODRINTH_TOKEN" -G "$API/gallery" --data-urlencode "url=$OLD"
+            echo "removed old $TITLE"
+          done
+
+          curl -sSf -X POST -H "Authorization: $MODRINTH_TOKEN" -H "Content-Type: image/png" \
+            -G "$API/gallery" \
+            --data-urlencode "ext=png" \
+            --data-urlencode "featured=$FEATURED" \
+            --data-urlencode "title=$TITLE" \
+            --data-urlencode "description=$DESC" \
+            --data-binary "@docs/screenshots/$FILE"
+          echo "uploaded $FILE as $TITLE"
+        done

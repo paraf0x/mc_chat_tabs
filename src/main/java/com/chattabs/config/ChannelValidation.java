@@ -18,6 +18,9 @@ public final class ChannelValidation {
         if (id.equalsIgnoreCase("all")) {
             return Optional.of("\"all\" is reserved for the All tab.");
         }
+        if (id.equalsIgnoreCase("system")) {
+            return Optional.of("\"system\" is reserved for the System tab.");
+        }
         if (candidate.getTag().isBlank()) {
             return Optional.of("Chat tag must not be empty.");
         }

@@ -63,6 +63,7 @@ public class ChannelDefinition {
     }
 
     public boolean isValid() {
-        return !getId().isBlank() && !getTag().isBlank() && !getId().equalsIgnoreCase("all");
+        return !getId().isBlank() && !getTag().isBlank() && !getId().equalsIgnoreCase("all")
+                && !getId().equalsIgnoreCase("system");
     }
 }

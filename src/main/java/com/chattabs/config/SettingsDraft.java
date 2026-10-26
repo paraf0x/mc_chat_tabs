@@ -1,6 +1,7 @@
 package com.chattabs.config;
 
 import com.chattabs.ChatTabsConfig;
+import com.chattabs.chat.MentionMatcher;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +48,11 @@ public class SettingsDraft {
                     channel.getJoinCommand(), channel.isAlwaysVisible(), channel.isPeek(),
                     channel.isSound(), channel.isBadge()));
         }
-        return new ServerProfile(source.getName(), source.getServerAddress(), source.getSeparator(), channels);
+        ServerProfile copy = new ServerProfile(source.getName(), source.getServerAddress(), source.getSeparator(), channels);
+        copy.setMentionAlert(source.isMentionAlert());
+        copy.setMentionNames(source.getMentionNames());
+        copy.setSystemTab(source.isSystemTab());
+        return copy;
     }
 
     public List<ServerProfile> profiles() {
@@ -98,6 +103,18 @@ public class SettingsDraft {
         profile(profileIndex).setSeparator(separator);
     }
 
+    public void setMentionAlert(int profileIndex, boolean enabled) {
+        profile(profileIndex).setMentionAlert(enabled);
+    }
+
+    public void setSystemTab(int profileIndex, boolean enabled) {
+        profile(profileIndex).setSystemTab(enabled);
+    }
+
+    public void setMentionNames(int profileIndex, String commaSeparated) {
+        profile(profileIndex).setMentionNames(MentionMatcher.parseNames(commaSeparated));
+    }
+
     /** Replaces the channel at {@code channelIndex}, or appends when it is negative. */
     public void putChannel(int profileIndex, int channelIndex, ChannelDefinition channel) {
         List<ChannelDefinition> channels = profile(profileIndex).channelsForEditing();
@@ -117,7 +134,11 @@ public class SettingsDraft {
 
     public int addProfileForAddress(String address, int copyFromIndex) {
         ServerProfile copy = copyOf(profile(copyFromIndex));
-        profiles.add(new ServerProfile(address, address, copy.getSeparator(), copy.channelsForEditing()));
+        ServerProfile profile = new ServerProfile(address, address, copy.getSeparator(), copy.channelsForEditing());
+        profile.setMentionAlert(copy.isMentionAlert());
+        profile.setMentionNames(copy.getMentionNames());
+        profile.setSystemTab(copy.isSystemTab());
+        profiles.add(profile);
         return profiles.size() - 1;
     }
 

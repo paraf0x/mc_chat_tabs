@@ -4,13 +4,22 @@ A client-side Fabric mod that adds tabbed chat to Minecraft. Automatically sorts
 
 Built for servers that use `[G]`/`[L]` channel prefixes and `/tell` for direct messages. Tested on Lunar Client (1.21.11).
 
+![Chat tabs with unread badges](docs/screenshots/tabs.png)
+
+| All tab | System tab | DM tab |
+|---|---|---|
+| ![All](docs/screenshots/all.png) | ![System](docs/screenshots/system.png) | ![DM](docs/screenshots/dm.png) |
+
+![Settings](docs/screenshots/settings.png)
+
 ## Features
 
 - **All / Local tabs** — filter chat by `[G]` global and `[L]` local channels
 - **Auto DM tabs** — new tabs appear automatically when you send or receive a `/tell` message, with a close button to dismiss them
 - **Unread indicators** — orange badge with count on inactive tabs
 - **Sound notifications** — pling sound when messages arrive in inactive tabs; louder distinct pling for name mentions
-- **Name mention detection** — detects your player name in `[G]` messages and plays an alert
+- **Mention alert** — when someone writes your player name or one of your nicknames (settings: *Mention alert*, *My names*), you get a badge and a pling even in quiet channels. Lines without their own tab (e.g. Global) badge the All tab. Whole words only; your own lines never count
+- **System tab** — optional tab with server messages (joins, shop notices, command replies); they stay in All as well
 - **Auto channel switching** — selecting a tab sends the appropriate `/g` or `/l` command to the server
 - **Selectable chat mode** — switch between filtered tabs and single-window send-target tabs via command
 - **Idle auto-switch to All** — optional timeout to fall back from Local/DM tabs to All after inactivity

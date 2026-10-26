@@ -35,9 +35,20 @@ public class ChatParser {
     }
 
     private static volatile List<ChannelPattern> channelPatterns = buildPatterns(ServerProfile.builtInDefault());
+    // "[Any Tag] Sender > text" for tags no channel claims, e.g. [G] when Global has no tab
+    private static volatile Pattern untaggedChannelPattern = buildUntaggedPattern(">");
+    private static volatile List<String> mentionNames = List.of();
+    private static volatile String ownNameForTesting;
 
     public static void setActiveProfile(ServerProfile profile) {
-        channelPatterns = buildPatterns(profile == null ? ServerProfile.builtInDefault() : profile);
+        ServerProfile effective = profile == null ? ServerProfile.builtInDefault() : profile;
+        channelPatterns = buildPatterns(effective);
+        untaggedChannelPattern = buildUntaggedPattern(effective.getSeparator());
+        mentionNames = effective.getMentionNames();
+    }
+
+    static void setOwnNameForTesting(String name) {
+        ownNameForTesting = name;
     }
 
     private static List<ChannelPattern> buildPatterns(ServerProfile profile) {
@@ -54,7 +65,14 @@ public class ChatParser {
                 + Pattern.quote(separator) + "\\s*(.*)$");
     }
 
+    private static Pattern buildUntaggedPattern(String separator) {
+        return Pattern.compile("^\\[[^\\]]+\\]\\s+(.+?)\\s*" + Pattern.quote(separator) + "\\s*(.*)$");
+    }
+
     private static String getOwnPlayerName() {
+        if (ownNameForTesting != null) {
+            return ownNameForTesting;
+        }
         Minecraft client = Minecraft.getInstance();
         if (client != null && client.player != null) {
             return client.player.getName().getString();
@@ -129,10 +147,7 @@ public class ChatParser {
                 String content = matcher.group(2).trim();
                 ChatMessage msg = new ChatMessage(message, MessageKind.CHANNEL,
                         channelPattern.channelId(), sender, content);
-                String ownName = getOwnPlayerName();
-                if (ownName != null && content.toLowerCase().contains(ownName.toLowerCase())) {
-                    msg.setMention(true);
-                }
+                msg.setMention(isMention(sender, content));
                 return msg;
             }
         }
@@ -166,7 +181,48 @@ public class ChatParser {
             }
         }
 
+        // A player's line without a channel tab (unknown tag, or vanilla chat) still carries mentions
+        ChatMessage untagged = parseUntaggedChat(message, text);
+        if (untagged != null) {
+            return untagged;
+        }
+
         // Default to SYSTEM for non-chat messages (notifications, etc.)
         return new ChatMessage(message, MessageKind.SYSTEM, null, null, text);
+    }
+
+    private static ChatMessage parseUntaggedChat(Component message, String text) {
+        String sender = null;
+        String content = null;
+        if (message.getContents() instanceof TranslatableContents translatable
+                && translatable.getKey().equals("chat.type.text") && translatable.getArgs().length >= 2) {
+            sender = argText(translatable.getArgs()[0]);
+            content = argText(translatable.getArgs()[1]);
+        } else {
+            Matcher matcher = untaggedChannelPattern.matcher(text);
+            if (matcher.find()) {
+                sender = matcher.group(1).trim();
+                content = matcher.group(2).trim();
+            }
+        }
+        if (sender == null) {
+            return null;
+        }
+        ChatMessage msg = new ChatMessage(message, MessageKind.SYSTEM, null, sender, content);
+        msg.setMention(isMention(sender, content));
+        return msg;
+    }
+
+    /** Own name or a profile name in the text, and not our own line. */
+    private static boolean isMention(String sender, String content) {
+        String ownName = getOwnPlayerName();
+        if (ownName != null && MentionMatcher.mentions(sender, List.of(ownName))) {
+            return false;
+        }
+        List<String> names = new ArrayList<>(mentionNames);
+        if (ownName != null) {
+            names.add(ownName);
+        }
+        return MentionMatcher.mentions(content, names);
     }
 }

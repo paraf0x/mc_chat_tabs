@@ -11,6 +11,9 @@ public class ServerProfile {
     private String serverAddress = "";
     private String separator = ">";
     private List<ChannelDefinition> channels = new ArrayList<>();
+    private boolean mentionAlert = false;
+    private boolean systemTab = false;
+    private List<String> mentionNames = new ArrayList<>();
 
     public ServerProfile() {
     }
@@ -74,6 +77,33 @@ public class ServerProfile {
 
     public void setSeparator(String separator) {
         this.separator = separator;
+    }
+
+    /** Badge + pling when someone names you, even in quiet channels or lines without a channel. */
+    public boolean isMentionAlert() {
+        return mentionAlert;
+    }
+
+    public void setMentionAlert(boolean mentionAlert) {
+        this.mentionAlert = mentionAlert;
+    }
+
+    /** A System tab that collects server lines (they stay in All too). */
+    public boolean isSystemTab() {
+        return systemTab;
+    }
+
+    public void setSystemTab(boolean systemTab) {
+        this.systemTab = systemTab;
+    }
+
+    /** Extra names that count as you; your player name always counts. */
+    public List<String> getMentionNames() {
+        return mentionNames == null ? List.of() : List.copyOf(mentionNames);
+    }
+
+    public void setMentionNames(List<String> names) {
+        this.mentionNames = new ArrayList<>(names);
     }
 
     public void setName(String name) {

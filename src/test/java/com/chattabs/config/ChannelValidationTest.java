@@ -38,4 +38,10 @@ class ChannelValidationTest {
         assertTrue(ChannelValidation.validate(channel("TRADE", "[X]"), others).isPresent());
         assertTrue(ChannelValidation.validate(channel("other", "[X]"), others).isEmpty());
     }
+
+    @Test
+    void systemIdIsReserved() {
+        assertTrue(ChannelValidation.validate(channel("system", "[S]"), List.of()).isPresent());
+        assertFalse(new ChannelDefinition("System", "S", "[S]", "", true, false).isValid());
+    }
 }
