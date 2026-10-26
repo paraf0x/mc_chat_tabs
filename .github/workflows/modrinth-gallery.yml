@@ -19,7 +19,9 @@ jobs:
       run: |
         if [ -z "$MODRINTH_TOKEN" ]; then echo "MODRINTH_TOKEN not set" && exit 1; fi
         if [ -z "$MODRINTH_PROJECT" ]; then echo "MODRINTH_PROJECT not set" && exit 1; fi
-        API="https://api.modrinth.com/v2/project/$MODRINTH_PROJECT"
+        # Secrets pasted with a trailing newline make curl reject the URL.
+        PROJECT=$(printf '%s' "$MODRINTH_PROJECT" | tr -d '[:space:]')
+        API="https://api.modrinth.com/v2/project/$PROJECT"
 
         # file|title|description|featured
         IMAGES=(
@@ -41,12 +43,10 @@ jobs:
             echo "removed old $TITLE"
           done
 
+          # Metadata goes in the query string, the image is the raw body (no -G: it would move the body too).
+          QUERY=$(jq -rn --arg f "$FEATURED" --arg t "$TITLE" --arg d "$DESC" \
+            '"ext=png&featured=\($f)&title=\($t | @uri)&description=\($d | @uri)"')
           curl -sSf -X POST -H "Authorization: $MODRINTH_TOKEN" -H "Content-Type: image/png" \
-            -G "$API/gallery" \
-            --data-urlencode "ext=png" \
-            --data-urlencode "featured=$FEATURED" \
-            --data-urlencode "title=$TITLE" \
-            --data-urlencode "description=$DESC" \
-            --data-binary "@docs/screenshots/$FILE"
+            --data-binary "@docs/screenshots/$FILE" "$API/gallery?$QUERY"
           echo "uploaded $FILE as $TITLE"
         done
