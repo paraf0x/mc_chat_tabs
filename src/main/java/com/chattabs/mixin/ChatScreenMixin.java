@@ -9,13 +9,14 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.chat.Component;
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
 import com.mojang.blaze3d.platform.InputConstants;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
@@ -90,9 +91,10 @@ public abstract class ChatScreenMixin extends Screen {
     }
 
     // Turn the line into a DM here, after it went into chat history unprefixed.
-    @Redirect(method = "handleChatInput", at = @At(value = "INVOKE",
+    // WrapOperation, not Redirect: clients like Lunar hook the same call, and two Redirects can't chain.
+    @WrapOperation(method = "handleChatInput", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/multiplayer/ClientPacketListener;sendChat(Ljava/lang/String;)V"))
-    private void sendChatOrDm(ClientPacketListener connection, String message) {
+    private void sendChatOrDm(ClientPacketListener connection, String message, Operation<Void> original) {
         TabManager tabManager = TabManager.getInstance();
         tabManager.noteOutgoingMessage();
 
@@ -100,7 +102,7 @@ public abstract class ChatScreenMixin extends Screen {
         if (dmCommand != null) {
             connection.sendCommand(dmCommand);
         } else {
-            connection.sendChat(message);
+            original.call(connection, message);
         }
     }
 }
