@@ -69,6 +69,7 @@ public class ChatTabsGameTest implements FabricClientGameTest {
             singleWindowMode();
             mentions();
             systemTab();
+            envelopeDms();
             settingsScreen();
             showcase();
 
@@ -335,6 +336,27 @@ public class ChatTabsGameTest implements FabricClientGameTest {
                 tabs.applyProfile(profile);
             });
             check("system: switched off hides the tab", visibleIds().contains("system"), false);
+        } finally {
+            ctx.runOnClient(mc -> tabs.applyProfile(PROFILE));
+        }
+    }
+
+    /** Beacoland's DM format, sent as system lines, with the user's real profile settings. */
+    private void envelopeDms() {
+        ServerProfile profile = new ServerProfile("beacoland", "", ">", List.of(
+                new ChannelDefinition("local", "Local", "[L]", "l", true, false),
+                new ChannelDefinition("kingdom", "Kingdom", "[K]", "channel join kingdom", false, false)));
+        profile.setMentionAlert(true);
+        profile.setMentionNames(List.of("Uni", "Beef"));
+        profile.setSystemTab(true);
+        ctx.runOnClient(mc -> tabs.applyProfile(profile));
+        try {
+            clickTab("local");
+            incoming("✉ Aylash → Tester > hello stranger");
+            check("envelope: incoming DM opens a tab", visibleIds().stream().anyMatch(id -> id.toLowerCase().contains("aylash")), true);
+            incoming("✉ you → bob777000 > hi");
+            check("envelope: outgoing DM opens a tab", visibleIds().stream().anyMatch(id -> id.toLowerCase().contains("bob777000")), true);
+            System.out.println("CHATTABS-GAMETEST info envelope visible " + visibleIds());
         } finally {
             ctx.runOnClient(mc -> tabs.applyProfile(PROFILE));
         }

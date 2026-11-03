@@ -28,6 +28,12 @@ public class ChatParser {
             "[✉]\\s*(.+?)\\s*(?:" + ARROW_CHARS + ")\\s*(.+?)\\s*>\\s*(.*)$",
             Pattern.CASE_INSENSITIVE);
 
+    // Lunar Client renders the ✉ as its own emoji component, so the line arrives without it.
+    // Without the envelope only accept the strict shape: line start, player names, a Unicode arrow.
+    private static final Pattern BARE_DM_PATTERN = Pattern.compile(
+            "^[^\\w\\[]*(you|\\w{1,16})\\s*[→➔►▶]\\s*(\\w{1,16})\\s*>\\s*(.*)$",
+            Pattern.CASE_INSENSITIVE);
+
     // Fallback: check if message contains DM indicator anywhere (for unusual formats)
     private static final Pattern DM_INDICATOR_PATTERN = Pattern.compile("[✉].*(?:" + ARROW_CHARS + ").*>", Pattern.CASE_INSENSITIVE);
 
@@ -122,7 +128,10 @@ public class ChatParser {
         // Check DMs FIRST (before channel patterns) - more specific patterns
         // Format: ✉ SenderOrYou → RecipientOrYou > message
         matcher = DM_PATTERN.matcher(text);
-        if (matcher.find()) {
+        if (!matcher.find()) {
+            matcher = BARE_DM_PATTERN.matcher(text);
+        }
+        if (matcher.find(0)) {
             String leftSide = matcher.group(1).trim();   // sender or "you"
             String rightSide = matcher.group(2).trim();  // recipient or player name
             String content = matcher.group(3).trim();

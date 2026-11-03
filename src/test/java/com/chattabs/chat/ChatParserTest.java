@@ -70,6 +70,29 @@ class ChatParserTest {
         assertEquals("SomePlayer", parsed.getSenderName());
     }
 
+    // Lunar Client swaps the ✉ for its own emoji component, so the text arrives without it.
+    @Test
+    void dmWithoutEnvelopeIsStillDm() {
+        Component incoming = Component.empty().append(Component.empty()).append(Component.literal(" Aylash → UnicornBeef > hello stranger"));
+        ChatMessage in = ChatParser.parse(incoming);
+        assertEquals(MessageKind.DM, in.getKind());
+        assertEquals("Aylash", in.getSenderName());
+        assertEquals("hello stranger", in.getContent());
+
+        ChatMessage hidden = ChatParser.parse(Component.literal("\uE720 Aylash → UnicornBeef > hi"));
+        assertEquals("Aylash", hidden.getSenderName());
+
+        ChatMessage out = ChatParser.parse(Component.literal(" you → bob777000 > hi"));
+        assertEquals(MessageKind.DM, out.getKind());
+        assertEquals("bob777000", out.getSenderName());
+        assertTrue(out.isOutgoing());
+    }
+
+    @Test
+    void arrowInChannelChatIsNotDm() {
+        assertEquals(MessageKind.CHANNEL, ChatParser.parse(Component.literal("[L] Bob > go a → b > c")).getKind());
+    }
+
     @Test
     void vanillaIncomingWhisperIsDmFromSender() {
         Component line = Component.translatable("commands.message.display.incoming",
