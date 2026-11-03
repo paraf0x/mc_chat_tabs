@@ -88,6 +88,25 @@ class ChatParserTest {
         assertTrue(out.isOutgoing());
     }
 
+    // Beacoland now writes "You"; a DM to yourself echoes "You → Me" and "Me → You".
+    @Test
+    void dmToYourselfStaysInOwnTab() {
+        ChatParser.setOwnNameForTesting("UnicornBeef");
+        try {
+            ChatMessage out = ChatParser.parse(Component.literal("\uE720 You → UnicornBeef > hi"));
+            ChatMessage in = ChatParser.parse(Component.literal("\uE720 UnicornBeef → You > hi"));
+            assertEquals("UnicornBeef", out.getSenderName());
+            assertTrue(out.isOutgoing());
+            assertEquals("UnicornBeef", in.getSenderName());
+            assertFalse(in.isOutgoing());
+            ChatMessage other = ChatParser.parse(Component.literal("\uE720 Aylash → You > hi"));
+            assertEquals("Aylash", other.getSenderName());
+            assertFalse(other.isOutgoing());
+        } finally {
+            ChatParser.setOwnNameForTesting(null);
+        }
+    }
+
     @Test
     void arrowInChannelChatIsNotDm() {
         assertEquals(MessageKind.CHANNEL, ChatParser.parse(Component.literal("[L] Bob > go a → b > c")).getKind());

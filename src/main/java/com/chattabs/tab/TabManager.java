@@ -34,6 +34,13 @@ public class TabManager {
 
     private long activeTabLastActivityAt = System.currentTimeMillis();
     private String lastServerChannelId;
+
+    // Beacoland (ChatControl): "/tell X" without text starts a conversation; until it ends, all chat goes to X.
+    private static final java.util.regex.Pattern CONVERSATION_START =
+            java.util.regex.Pattern.compile("Now conversing with (\\w{1,16})");
+    private static final java.util.regex.Pattern CONVERSATION_END =
+            java.util.regex.Pattern.compile("Conversation mode with \\w{1,16} has been disabled");
+    private String conversationPartner;
     private String lastOutgoingDmPlayer;
     private long lastOutgoingDmAt;
     private String forcedVisibleMessage;
@@ -241,6 +248,33 @@ public class TabManager {
         return null;
     }
 
+    private void trackConversation(ChatMessage parsed) {
+        if (parsed.getKind() != MessageKind.SYSTEM || parsed.getSenderName() != null) {
+            return;
+        }
+        String text = parsed.getContent() == null ? "" : parsed.getContent();
+        java.util.regex.Matcher start = CONVERSATION_START.matcher(text);
+        if (start.find()) {
+            conversationPartner = start.group(1);
+        } else if (CONVERSATION_END.matcher(text).find()) {
+            conversationPartner = null;
+        }
+    }
+
+    /**
+     * The command (without "/") that ends a server-side conversation before a line typed in a
+     * channel or All tab, so it isn't sent as a DM; null when there is nothing to end.
+     */
+    public String takeConversationExitCommand() {
+        if (conversationPartner == null || (activeTab.isDmTab()
+                && conversationPartner.equalsIgnoreCase(activeTab.getDmPlayerName()))) {
+            return null;
+        }
+        String command = "tell " + conversationPartner;
+        conversationPartner = null;
+        return command;
+    }
+
     public void noteOutgoingMessage() {
         touchActiveTabActivity();
 
@@ -314,6 +348,7 @@ public class TabManager {
 
     public void onMessageReceived(Component message, GuiMessage hudLine) {
         ChatMessage parsed = ChatParser.parse(message);
+        trackConversation(parsed);
 
         if (parsed.isDM() && parsed.getSenderName() != null) {
             getOrCreateDmTab(parsed.getSenderName());

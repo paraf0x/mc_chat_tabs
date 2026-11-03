@@ -137,8 +137,9 @@ public class ChatParser {
             String content = matcher.group(3).trim();
 
             String ownName = getOwnPlayerName();
-            boolean isOutgoing = leftSide.equalsIgnoreCase("you") ||
-                    (ownName != null && leftSide.equalsIgnoreCase(ownName));
+            // "A → You" is incoming even when A is our own name (a DM to yourself).
+            boolean isOutgoing = !rightSide.equalsIgnoreCase("you")
+                    && (leftSide.equalsIgnoreCase("you") || (ownName != null && leftSide.equalsIgnoreCase(ownName)));
 
             // The "other player" is the one that isn't us
             String otherPlayer = isOutgoing ? rightSide : leftSide;

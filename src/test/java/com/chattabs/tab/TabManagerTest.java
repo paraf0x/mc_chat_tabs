@@ -44,6 +44,32 @@ class TabManagerTest {
         assertEquals(1, manager.getChannelTab("kingdom").getUnreadCount());
     }
 
+    // Beacoland: "/tell X" without text starts a conversation that swallows all later chat, even after /l.
+    @Test
+    void conversationModeIsEndedBeforeChattingInAChannel() {
+        TabManager manager = TabManager.getInstance();
+        manager.onMessageReceived(Component.literal("[✔] Now conversing with UnicornBeef."),
+                line("[✔] Now conversing with UnicornBeef."));
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+
+        assertEquals("tell UnicornBeef", manager.takeConversationExitCommand());
+        assertNull(manager.takeConversationExitCommand(), "sent once, not again before the server answers");
+    }
+
+    @Test
+    void conversationModeIsKeptInItsDmTab() {
+        TabManager manager = TabManager.getInstance();
+        manager.onMessageReceived(Component.literal("[✔] Now conversing with Aylash."),
+                line("[✔] Now conversing with Aylash."));
+        manager.setActiveTab(manager.getOrCreateDmTab("Aylash"), false);
+        assertNull(manager.takeConversationExitCommand());
+
+        manager.onMessageReceived(Component.literal("[✔] Conversation mode with Aylash has been disabled."),
+                line("[✔] Conversation mode with Aylash has been disabled."));
+        manager.setActiveTab(manager.getChannelTab("local"), false);
+        assertNull(manager.takeConversationExitCommand());
+    }
+
     @Test
     void closingActiveChannelTabFallsBackToAll() {
         TabManager manager = TabManager.getInstance();

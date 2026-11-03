@@ -102,6 +102,10 @@ public abstract class ChatScreenMixin extends Screen {
         if (dmCommand != null) {
             connection.sendCommand(dmCommand);
         } else {
+            String conversationExit = tabManager.takeConversationExitCommand();
+            if (conversationExit != null) {
+                connection.sendCommand(conversationExit);
+            }
             original.call(connection, message);
         }
     }
