@@ -250,7 +250,7 @@ public class ChatTabsSettingsScreen extends Screen {
     private ChannelDefinition withFlags(ChannelDefinition source, boolean alwaysVisible, boolean sound,
                                         boolean badge, boolean peek) {
         return new ChannelDefinition(source.getId(), source.getDisplayName(), source.getTag(),
-                source.getJoinCommand(), alwaysVisible, peek, sound, badge);
+                source.getJoinCommand(), source.getSendCommand(), alwaysVisible, peek, sound, badge);
     }
 
     private void replaceChannel(int channelIndex, ChannelDefinition channel) {

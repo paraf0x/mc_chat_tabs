@@ -44,6 +44,7 @@ public class TabManager {
     private String lastOutgoingDmPlayer;
     private long lastOutgoingDmAt;
     private String forcedVisibleMessage;
+    private String pendingLocalNotice;
     private long forcedVisibleMessageAt;
     private long lastPeekMessageAt;
     private int soundRequests;
@@ -248,6 +249,26 @@ public class TabManager {
         return null;
     }
 
+    /** Send command of the active channel tab, "" in All, DM and System tabs. */
+    public String getOutgoingSendCommand() {
+        if (activeTab.isChannelTab() && activeProfile != null) {
+            ChannelDefinition definition = activeProfile.channelById(activeTab.getChannelId());
+            if (definition != null) {
+                return definition.getSendCommand();
+            }
+        }
+        return "";
+    }
+
+    /**
+     * Shows a client-side notice in the active tab. The next addMessage with this text is added to
+     * the tab and kept visible there even though it parses as a system line.
+     */
+    public void noteLocalNotice(String text) {
+        pendingLocalNotice = text;
+        forceDisplayMessage(text);
+    }
+
     private void trackConversation(ChatMessage parsed) {
         if (parsed.getKind() != MessageKind.SYSTEM || parsed.getSenderName() != null) {
             return;
@@ -359,6 +380,12 @@ public class TabManager {
         }
 
         recordGlobalPeekMessage(parsed, message);
+        if (pendingLocalNotice != null && pendingLocalNotice.equals(message.getString())) {
+            pendingLocalNotice = null;
+            if (!activeTab.isAllTab()) {
+                activeTab.addMessage(hudLine);
+            }
+        }
         boolean mirroredDmFailure = mirrorLikelyDmFailure(message, hudLine, parsed);
         boolean mentionAlert = parsed.isMention() && activeProfile != null && activeProfile.isMentionAlert();
         // The badge goes where the line has its own tab; a line that only lands in All badges All.

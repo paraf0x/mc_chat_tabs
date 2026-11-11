@@ -33,6 +33,7 @@ public class ChannelEditScreen extends Screen {
     private EditBox nameBox;
     private EditBox tagBox;
     private EditBox joinBox;
+    private EditBox sendBox;
     private EditBox sampleBox;
     private Button doneButton;
 
@@ -83,11 +84,15 @@ public class ChannelEditScreen extends Screen {
         joinBox = addField(left, y, "channel join kingdom", existing == null ? "" : existing.getJoinCommand(),
                 "Command sent (without slash) when switching to this tab. Leave empty for none.");
         y += 34;
+        sendBox = addField(left, y, "hoard c", existing == null ? "" : existing.getSendCommand(),
+                "Client command (without slash) that sends lines typed in this tab, e.g. hoard c. "
+                        + "Lines starting with / are sent as usual. Leave empty for normal chat.");
+        y += 34;
         sampleBox = addField(left, y, "sample line",
                 ChannelPreview.sampleLineFor(existing == null ? "" : existing.getTag()),
                 "Paste a real line from your server to check the settings.");
 
-        int toggleY = 214;
+        int toggleY = 248;
         addToggle(left, toggleY, "Always visible", alwaysVisible,
                 "On: the tab is always shown. Off: it appears only when the channel has activity and can be closed.",
                 value -> alwaysVisible = value);
@@ -148,6 +153,7 @@ public class ChannelEditScreen extends Screen {
                 nameBox == null ? "" : nameBox.getValue().trim(),
                 tagBox == null ? "" : tagBox.getValue().trim(),
                 joinBox == null ? "" : joinBox.getValue().trim(),
+                sendBox == null ? "" : sendBox.getValue().trim(),
                 alwaysVisible, peek, sound, badge);
     }
 
@@ -176,9 +182,10 @@ public class ChannelEditScreen extends Screen {
         context.text(font, "Display name", left, 76, LABEL_COLOR, false);
         context.text(font, "Chat tag", left, 110, LABEL_COLOR, false);
         context.text(font, "Join command", left, 144, LABEL_COLOR, false);
-        context.text(font, "Sample line", left, 178, LABEL_COLOR, false);
+        context.text(font, "Send command", left, 178, LABEL_COLOR, false);
+        context.text(font, "Sample line", left, 212, LABEL_COLOR, false);
 
-        renderPreview(context, left, 268);
+        renderPreview(context, left, 302);
 
         if (errorMessage != null) {
             context.text(font, errorMessage, left, height - 48, ERROR_COLOR, false);

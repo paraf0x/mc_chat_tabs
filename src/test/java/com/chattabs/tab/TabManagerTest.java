@@ -1,5 +1,6 @@
 package com.chattabs.tab;
 
+import com.chattabs.chat.ChatParser;
 import com.chattabs.config.ChannelDefinition;
 import com.chattabs.config.ServerProfile;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
@@ -417,5 +418,37 @@ class TabManagerTest {
         manager.applyProfile(systemProfile(true));
         ChatTab system = manager.getVisibleTabs().stream().filter(ChatTab::isSystemTab).findFirst().orElseThrow();
         assertTrue(system.getMessages().isEmpty());
+    }
+
+    @Test
+    void clientAddedCrewLineSortsIntoCrewTab() {
+        TabManager manager = TabManager.getInstance();
+        ChatParser.setActiveProfile(crewProfile());
+        manager.applyProfile(crewProfile());
+
+        // hoardkeeper: player.sendSystemMessage(aqua "[Crew] " + gray rest), arrives via ChatComponent.addMessage.
+        for (String rest : List.of("Steve: on my way", "Alex (Discord): hi")) {
+            Component styled = Component.literal("[Crew] ").withStyle(net.minecraft.ChatFormatting.AQUA)
+                    .append(Component.literal(rest).withStyle(net.minecraft.ChatFormatting.GRAY));
+            manager.onMessageReceived(styled, new GuiMessage(0, styled, null, null, null));
+        }
+
+        assertEquals(2, manager.getChannelTab("crew").getMessages().size());
+        assertEquals(com.chattabs.chat.MessageKind.CHANNEL,
+                ChatParser.parse(Component.literal("[Crew] Steve: on my way")).getKind());
+    }
+
+    private static ServerProfile crewProfile() {
+        return new ServerProfile("crew", "", ":", List.of(
+                new ChannelDefinition("crew", "Crew", "[Crew]", "", "hoard c", true, false, true, true)));
+    }
+
+    @Test
+    void outgoingSendCommandComesFromActiveChannelTab() {
+        TabManager manager = TabManager.getInstance();
+        manager.applyProfile(crewProfile());
+        assertEquals("", manager.getOutgoingSendCommand());
+        manager.setActiveTab(manager.getChannelTab("crew"), false);
+        assertEquals("hoard c", manager.getOutgoingSendCommand());
     }
 }

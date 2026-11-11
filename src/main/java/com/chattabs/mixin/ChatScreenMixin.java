@@ -1,6 +1,9 @@
 package com.chattabs.mixin;
 
 import com.chattabs.ChatFocusHelper;
+import com.chattabs.ClientCommandRunner;
+import com.chattabs.tab.SendCommandRouter;
+import net.minecraft.client.Minecraft;
 import com.chattabs.tab.TabManager;
 import com.chattabs.ui.TabBar;
 import net.minecraft.client.gui.components.EditBox;
@@ -97,6 +100,21 @@ public abstract class ChatScreenMixin extends Screen {
     private void sendChatOrDm(ClientPacketListener connection, String message, Operation<Void> original) {
         TabManager tabManager = TabManager.getInstance();
         tabManager.noteOutgoingMessage();
+
+        // Channel with a send command: the line runs as a client command and never reaches the server.
+        SendCommandRouter.Result route = SendCommandRouter.route(
+                tabManager.getOutgoingSendCommand(), message, ClientCommandRunner::hasRoot);
+        if (route.action() == SendCommandRouter.Action.RUN_CLIENT_COMMAND) {
+            ClientCommandRunner.run(route.command());
+            return;
+        }
+        if (route.action() == SendCommandRouter.Action.BLOCKED) {
+            tabManager.noteLocalNotice(route.notice());
+            if (Minecraft.getInstance().player != null) {
+                Minecraft.getInstance().player.sendSystemMessage(Component.literal(route.notice()));
+            }
+            return;
+        }
 
         String dmCommand = tabManager.getOutgoingDmCommand(message);
         if (dmCommand != null) {

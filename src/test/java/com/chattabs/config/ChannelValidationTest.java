@@ -44,4 +44,18 @@ class ChannelValidationTest {
         assertTrue(ChannelValidation.validate(channel("system", "[S]"), List.of()).isPresent());
         assertFalse(new ChannelDefinition("System", "S", "[S]", "", true, false).isValid());
     }
+
+    @Test
+    void sendCommandWithEmptyJoinCommandIsValid() {
+        ChannelDefinition crew = new ChannelDefinition("crew", "Crew", "[Crew]", "", "hoard c", true, false, true, true);
+        assertTrue(ChannelValidation.validate(crew, List.of()).isEmpty());
+    }
+
+    @Test
+    void sendCommandSurvivesJsonRoundTripAndDefaultsToEmpty() {
+        com.google.gson.Gson gson = new com.google.gson.Gson();
+        ChannelDefinition crew = new ChannelDefinition("crew", "Crew", "[Crew]", "", "hoard c", true, false, true, true);
+        assertEquals("hoard c", gson.fromJson(gson.toJson(crew), ChannelDefinition.class).getSendCommand());
+        assertEquals("", gson.fromJson("{\"id\":\"g\",\"tag\":\"[G]\"}", ChannelDefinition.class).getSendCommand());
+    }
 }

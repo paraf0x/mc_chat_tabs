@@ -5,6 +5,7 @@ public class ChannelDefinition {
     private String displayName = "";
     private String tag = "";
     private String joinCommand = "";
+    private String sendCommand = "";
     private boolean alwaysVisible = true;
     private boolean peek = false;
     private boolean sound = true;
@@ -20,10 +21,16 @@ public class ChannelDefinition {
 
     public ChannelDefinition(String id, String displayName, String tag, String joinCommand,
                              boolean alwaysVisible, boolean peek, boolean sound, boolean badge) {
+        this(id, displayName, tag, joinCommand, "", alwaysVisible, peek, sound, badge);
+    }
+
+    public ChannelDefinition(String id, String displayName, String tag, String joinCommand, String sendCommand,
+                             boolean alwaysVisible, boolean peek, boolean sound, boolean badge) {
         this.id = id;
         this.displayName = displayName;
         this.tag = tag;
         this.joinCommand = joinCommand;
+        this.sendCommand = sendCommand;
         this.alwaysVisible = alwaysVisible;
         this.peek = peek;
         this.sound = sound;
@@ -44,6 +51,11 @@ public class ChannelDefinition {
 
     public String getJoinCommand() {
         return joinCommand == null ? "" : joinCommand;
+    }
+
+    /** Client command (without slash) that sends a line typed in this tab, e.g. "hoard c"; empty for plain chat. */
+    public String getSendCommand() {
+        return sendCommand == null ? "" : sendCommand;
     }
 
     public boolean isAlwaysVisible() {

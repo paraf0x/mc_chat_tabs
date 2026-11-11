@@ -45,7 +45,7 @@ public class SettingsDraft {
                 continue;
             }
             channels.add(new ChannelDefinition(channel.getId(), channel.getDisplayName(), channel.getTag(),
-                    channel.getJoinCommand(), channel.isAlwaysVisible(), channel.isPeek(),
+                    channel.getJoinCommand(), channel.getSendCommand(), channel.isAlwaysVisible(), channel.isPeek(),
                     channel.isSound(), channel.isBadge()));
         }
         ServerProfile copy = new ServerProfile(source.getName(), source.getServerAddress(), source.getSeparator(), channels);
