@@ -427,20 +427,27 @@ class TabManagerTest {
         manager.applyProfile(crewProfile());
 
         // hoardkeeper: player.sendSystemMessage(aqua "[Crew] " + gray rest), arrives via ChatComponent.addMessage.
-        for (String rest : List.of("Steve: on my way", "Alex (Discord): hi")) {
+        for (String rest : List.of("Steve > on my way", "Alex (Discord) > hi")) {
             Component styled = Component.literal("[Crew] ").withStyle(net.minecraft.ChatFormatting.AQUA)
                     .append(Component.literal(rest).withStyle(net.minecraft.ChatFormatting.GRAY));
             manager.onMessageReceived(styled, new GuiMessage(0, styled, null, null, null));
         }
 
         assertEquals(2, manager.getChannelTab("crew").getMessages().size());
+
+        Component global = Component.literal("[G] Bob > hello");
+        manager.onMessageReceived(global, new GuiMessage(0, global, null, null, null));
+        assertEquals(1, manager.getChannelTab("global").getMessages().size());
+        assertEquals(2, manager.getChannelTab("crew").getMessages().size());
         assertEquals(com.chattabs.chat.MessageKind.CHANNEL,
-                ChatParser.parse(Component.literal("[Crew] Steve: on my way")).getKind());
+                ChatParser.parse(Component.literal("[Crew] Steve > on my way")).getKind());
     }
 
+    /** The usual [G]/[L] channels plus Crew, default separator. */
     private static ServerProfile crewProfile() {
-        return new ServerProfile("crew", "", ":", List.of(
-                new ChannelDefinition("crew", "Crew", "[Crew]", "", "hoard c", true, false, true, true)));
+        List<ChannelDefinition> channels = new java.util.ArrayList<>(ServerProfile.builtInDefault().channelsForEditing());
+        channels.add(new ChannelDefinition("crew", "Crew", "[Crew]", "", "hoard c", true, false, true, true));
+        return new ServerProfile("crew", "", ">", channels);
     }
 
     @Test
