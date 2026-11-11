@@ -84,8 +84,8 @@ public class ChannelEditScreen extends Screen {
         joinBox = addField(left, y, "channel join kingdom", existing == null ? "" : existing.getJoinCommand(),
                 "Command sent (without slash) when switching to this tab. Leave empty for none.");
         y += 34;
-        sendBox = addField(left, y, "hoard c", existing == null ? "" : existing.getSendCommand(),
-                "Client command (without slash) that sends lines typed in this tab, e.g. hoard c. "
+        sendBox = addField(left, y, "team say", existing == null ? "" : existing.getSendCommand(),
+                "Client command (without slash) that sends lines typed in this tab, e.g. team say. "
                         + "Lines starting with / are sent as usual. Leave empty for normal chat.");
         y += 34;
         sampleBox = addField(left, y, "sample line",

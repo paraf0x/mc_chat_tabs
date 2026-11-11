@@ -3,8 +3,8 @@ package com.chattabs.tab;
 import java.util.function.Predicate;
 
 /**
- * Decides what happens to a line typed in a channel that has a send command (e.g. "hoard c").
- * The line becomes the client command "hoard c <line>" and never reaches the server as chat.
+ * Decides what happens to a line typed in a channel that has a send command (e.g. "team say").
+ * The line becomes the client command "team say <line>" and never reaches the server as chat.
  * A send command whose root is not a registered client command blocks the line.
  */
 public final class SendCommandRouter {

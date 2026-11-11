@@ -53,7 +53,7 @@ public class ChannelDefinition {
         return joinCommand == null ? "" : joinCommand;
     }
 
-    /** Client command (without slash) that sends a line typed in this tab, e.g. "hoard c"; empty for plain chat. */
+    /** Client command (without slash) that sends a line typed in this tab, e.g. "team say"; empty for plain chat. */
     public String getSendCommand() {
         return sendCommand == null ? "" : sendCommand;
     }
