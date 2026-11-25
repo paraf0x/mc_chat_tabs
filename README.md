@@ -15,10 +15,11 @@ Built for servers that use `[G]`/`[L]` channel prefixes and `/tell` for direct m
 ## Features
 
 - **All / Local tabs** — filter chat by `[G]` global and `[L]` local channels
+- **Default channels** — a fresh install has Global (`[G]`, no sound, no unread badge) and Local (`[L]`). Add more channels, such as a Kingdom tab, in the settings
 - **Auto DM tabs** — new tabs appear automatically when you send or receive a `/tell` message, with a close button to dismiss them
 - **Unread indicators** — orange badge with count on inactive tabs
 - **Sound notifications** — pling sound when messages arrive in inactive tabs; louder distinct pling for name mentions
-- **Mention alert** — when someone writes your player name or one of your nicknames (settings: *Mention alert*, *My names*), you get a badge and a pling even in quiet channels. Lines without their own tab (e.g. Global) badge the All tab. Whole words only; your own lines never count
+- **Mention alert** — when someone writes your player name or one of your nicknames (settings: *Mention alert*, *My names*), you get a badge and a pling even in quiet channels. Lines without their own tab badge the All tab. Whole words only; your own lines never count
 - **System tab** — optional tab with server messages (joins, shop notices, command replies); they stay in All as well
 - **Auto channel switching** — selecting a tab sends the appropriate `/g` or `/l` command to the server
 - **Send command** — a channel can have a send command (settings: *Send command*). A line typed in that tab, unless it starts with `/`, runs as the client command `<send command> <line>` and is never sent to the server as chat. If the command's first word is not a registered client command, nothing is sent and the tab shows "Chat Tabs: <root> is not available, line not sent". Example: a mod registers the client command `/team say <text>` and prints incoming lines as `[Team] Steve > on my way`. Set tag `[Team]`, send command `team say` and leave the join command empty. Typing `on my way` in the Team tab then runs `/team say on my way`, and the `[Team]` lines land in that tab. Switching to the tab sends no join command while the join command is empty.

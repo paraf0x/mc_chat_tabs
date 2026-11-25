@@ -3,6 +3,7 @@ package com.chattabs.tab;
 import com.chattabs.chat.ChatParser;
 import com.chattabs.config.ChannelDefinition;
 import com.chattabs.config.ServerProfile;
+import com.chattabs.config.TestProfiles;
 import net.minecraft.client.multiplayer.chat.GuiMessage;
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,7 +18,7 @@ class TabManagerTest {
     @BeforeEach
     void freshManager() {
         TabManager.resetForTesting();
-        TabManager.getInstance().applyProfile(ServerProfile.builtInDefault());
+        TabManager.getInstance().applyProfile(TestProfiles.withKingdom());
     }
 
     private static GuiMessage line(String text) {

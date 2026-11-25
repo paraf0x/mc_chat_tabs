@@ -124,9 +124,8 @@ public class ServerProfile {
 
     public static ServerProfile builtInDefault() {
         return new ServerProfile("default", "", ">", List.of(
-                new ChannelDefinition("global", "Global", "[G]", "g", true, true),
-                new ChannelDefinition("local", "Local", "[L]", "l", true, false),
-                new ChannelDefinition("kingdom", "Kingdom", "[K]", "channel join kingdom", false, false)
+                new ChannelDefinition("global", "Global", "[G]", "g", true, true, false, false),
+                new ChannelDefinition("local", "Local", "[L]", "l", true, false)
         ));
     }
 }

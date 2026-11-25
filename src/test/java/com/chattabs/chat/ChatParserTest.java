@@ -2,6 +2,7 @@ package com.chattabs.chat;
 
 import com.chattabs.config.ChannelDefinition;
 import com.chattabs.config.ServerProfile;
+import com.chattabs.config.TestProfiles;
 import net.minecraft.network.chat.Component;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ class ChatParserTest {
 
     @BeforeEach
     void useDefaultProfile() {
-        ChatParser.setActiveProfile(ServerProfile.builtInDefault());
+        ChatParser.setActiveProfile(TestProfiles.withKingdom());
     }
 
     @Test

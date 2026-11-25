@@ -15,7 +15,7 @@ class ServerProfileTest {
         assertEquals(">", profile.getSeparator());
 
         List<ChannelDefinition> channels = profile.validChannels();
-        assertEquals(3, channels.size());
+        assertEquals(2, channels.size());
 
         ChannelDefinition global = channels.get(0);
         assertEquals("global", global.getId());
@@ -23,6 +23,8 @@ class ServerProfileTest {
         assertEquals("g", global.getJoinCommand());
         assertTrue(global.isAlwaysVisible());
         assertTrue(global.isPeek());
+        assertFalse(global.isSound());
+        assertFalse(global.isBadge());
 
         ChannelDefinition local = channels.get(1);
         assertEquals("local", local.getId());
@@ -30,11 +32,7 @@ class ServerProfileTest {
         assertTrue(local.isAlwaysVisible());
         assertFalse(local.isPeek());
 
-        ChannelDefinition kingdom = channels.get(2);
-        assertEquals("kingdom", kingdom.getId());
-        assertEquals("[K]", kingdom.getTag());
-        assertEquals("channel join kingdom", kingdom.getJoinCommand());
-        assertFalse(kingdom.isAlwaysVisible());
+        assertNull(profile.channelById("kingdom"));
     }
 
     @Test
@@ -63,7 +61,7 @@ class ServerProfileTest {
 
     @Test
     void channelByIdFindsValidChannelsOnly() {
-        ServerProfile profile = ServerProfile.builtInDefault();
+        ServerProfile profile = TestProfiles.withKingdom();
         assertNotNull(profile.channelById("kingdom"));
         assertNull(profile.channelById("nope"));
     }
